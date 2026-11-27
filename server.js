@@ -787,10 +787,18 @@ wss.on("connection", (ws) => {
 function handlePos(p, msg) {
   const nx = clamp(Number(msg.x) || p.x, 24, WORLD.w - 24);
   const ny = clamp(Number(msg.y) || p.y, 24, WORLD.h - 24);
-  // Anti-teleport: a jump of 500+ units in under 300ms is not walking.
+  // Anti-teleport: allow whatever the player could legitimately have walked
+  // since their last accepted position, plus a margin. A fast joystick
+  // sprint can never trip this — only an impossible jump inside a short
+  // window is dropped. And any position is accepted once a full second has
+  // passed since the last accepted one, so a dropped update can never
+  // strand a legitimate player (their next reports re-sync the server).
   const now = Date.now();
+  const dtMs = Math.max(0, now - p.lastPos.at);
+  const st = classStats(p.char);
+  const allowed = Math.max(500, st.speed * (Math.min(dtMs, 2000) / 1000) + 150);
   const d = dist(nx, ny, p.lastPos.x, p.lastPos.y);
-  if (now - p.lastPos.at < 300 && d > 500) return;
+  if (d > allowed && dtMs < 1000) return;
   p.x = nx; p.y = ny;
   p.face = msg.face === -1 ? -1 : 1;
   p.moving = !!msg.moving;
@@ -1041,9 +1049,7 @@ let tickCount = 0;
 setInterval(() => {
   try { tick(); } catch (e) { console.log("[tick] " + (e && e.message ? e.message : e)); }
   tickCount++;
-  if (tickCount % 2 === 0) {
-    try { broadcastSnap(); } catch (e) { console.log("[snap] " + (e && e.message ? e.message : e)); }
-  }
+  try { broadcastSnap(); } catch (e) { console.log("[snap] " + (e && e.message ? e.message : e)); }
 }, 100);
 
 async function shutdown() {
