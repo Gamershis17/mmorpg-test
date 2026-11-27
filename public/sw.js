@@ -1,7 +1,7 @@
 /* MMORPG test service worker — app-shell cache only.
    Never intercepts /api/* calls. WebSocket traffic is never intercepted
    by service workers anyway. Bump CACHE on future shell updates. */
-var CACHE = "mmorpg-test-v3";
+var CACHE = "mmorpg-test-v4";
 var SHELL = ["/", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", function (e) {

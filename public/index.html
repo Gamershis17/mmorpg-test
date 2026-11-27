@@ -543,7 +543,7 @@
           <button id="btn-shop" class="round-btn" type="button">Shop</button>
           <button id="btn-armory" class="round-btn" type="button">Armory</button>
           <button id="btn-cityshop" class="round-btn" type="button">Market</button>
-          <button id="btn-cityarmory" class="round-btn" type="button">City Armory</button>
+          <button id="btn-cityarmory" class="round-btn" type="button">Dawnhold Armory</button>
           <button id="btn-fishshop" class="round-btn" type="button">Bait</button>
           <button id="btn-fish" class="round-btn" type="button">Fish</button>
           <button id="btn-tame" class="round-btn" type="button">Tame</button>
@@ -712,7 +712,7 @@
       ];
       var WORLD = { w: 4200, h: 1800 };
       var VILLAGE = { x: 640, y: 900, r: 355 };
-      // Slice 3 — the City (placeholder name until Cody names it) at the east
+      // Slice 3 — Dawnhold, named by Cody at the east
       // end of the world, reached by the Old Road. The river runs along the
       // city's east edge; its west bank is where players fish.
       var CITY = { x: 3550, y: 900, r: 430 };
@@ -782,7 +782,7 @@
         bandage: { name: "Bandage", icon: "🩹", healPct: 0.25, price: 10, desc: "Restores 25% health" },
         potion:  { name: "Healing Potion", icon: "🧪", healPct: 0.5, price: 25, desc: "Restores 50% health" },
         gpotion: { name: "Greater Healing Potion", icon: "⚗️", healPct: 1.0, price: 60, desc: "Restores 100% health" },
-        city_bread: { name: "City Bread", icon: "🍞", healPct: 0.35, price: 15, desc: "Fresh from Baker Nell's oven. Restores 35% health" }
+        city_bread: { name: "Dawnhold Bread", icon: "🍞", healPct: 0.35, price: 15, desc: "Fresh from Baker Nell's oven. Restores 35% health" }
       };
 
       /* ---------------- session state ---------------- */
@@ -1190,7 +1190,7 @@
             { id: "bandage", name: "Bandage", icon: "🩹", price: 10, healPct: 0.25, desc: "Restores 25% health" },
             { id: "potion", name: "Healing Potion", icon: "🧪", price: 25, healPct: 0.5, desc: "Restores 50% health" },
             { id: "gpotion", name: "Greater Healing Potion", icon: "⚗️", price: 60, healPct: 1.0, desc: "Restores 100% health" },
-            { id: "city_bread", name: "City Bread", icon: "🍞", price: 15, healPct: 0.35, desc: "Fresh from Baker Nell's oven. Restores 35% health" }
+            { id: "city_bread", name: "Dawnhold Bread", icon: "🍞", price: 15, healPct: 0.35, desc: "Fresh from Baker Nell's oven. Restores 35% health" }
           ],
           cityarmory: [
             { id: "steel_blade", name: "Steel Blade", icon: "🗡️", slot: "weapon", dmg: 16, price: 300, desc: "+16 Damage" },
@@ -1203,7 +1203,7 @@
           fishshop: [
             { id: "bandage", name: "Bandage", icon: "🩹", price: 10, healPct: 0.25, desc: "Restores 25% health" },
             { id: "potion", name: "Healing Potion", icon: "🧪", price: 25, healPct: 0.5, desc: "Restores 50% health" },
-            { id: "city_bread", name: "City Bread", icon: "🍞", price: 15, healPct: 0.35, desc: "Fresh from Baker Nell's oven. Restores 35% health" }
+            { id: "city_bread", name: "Dawnhold Bread", icon: "🍞", price: 15, healPct: 0.35, desc: "Fresh from Baker Nell's oven. Restores 35% health" }
           ]
         };
       }
@@ -1219,8 +1219,8 @@
         var titles = {
           shop: ["General Shop", "Shopkeeper Bram · Potions and supplies."],
           armory: ["Armory", "Armorer Durn · Weapons and armor."],
-          cityshop: ["City Market", "Merchant Ada · Potions, supplies and fresh bread."],
-          cityarmory: ["City Armory", "Smith Garrick · Steel weapons and armor."],
+          cityshop: ["Dawnhold Market", "Merchant Ada · Potions, supplies and fresh bread."],
+          cityarmory: ["Dawnhold Armory", "Smith Garrick · Steel weapons and armor."],
           fishshop: ["Bait & Tackle", "Old Tomas · Potions, bread and fishing supplies."]
         };
         var t = titles[kind] || titles.shop;
@@ -1608,7 +1608,7 @@
         g.beginPath(); g.ellipse(1980, 1420, 190, 110, 0.3, 0, 7); g.fill();
         g.fillStyle = "rgba(255,255,255,0.18)";
         g.beginPath(); g.ellipse(1930, 1390, 90, 40, 0.3, 0, 7); g.fill();
-        // ---- Slice 3: the City, the end of the Old Road, and the river ----
+        // ---- Slice 3: Dawnhold, the end of the Old Road, and the river ----
         g.fillStyle = "#c2a878";
         g.beginPath(); g.ellipse(CITY.x, CITY.y, CITY.r + 30, (CITY.r + 30) * 0.86, 0, 0, 7); g.fill();
         // main street from the gate to the river bank
@@ -1775,7 +1775,7 @@
           return { type: pt.type, name: pt.name, x: spawn.x - 60 - i * 40, y: spawn.y + 60 + i * 30, hp: 60 + (ch.level - 1) * 8, maxHp: 60 + (ch.level - 1) * 8, atkCd: 0, face: 1 };
         });
         G.zone = zoneOf(spawn.x, spawn.y);
-        G.zoneName = G.zone === "city" ? "The City" : G.zone === "road" ? "The Old Road" : "Dawnhollow Vale";
+        G.zoneName = G.zone === "city" ? "Dawnhold" : G.zone === "road" ? "The Old Road" : "Dawnhollow Vale";
         $("hud-portrait").textContent = CLASSES[ch.cls].icon;
         $("hud-name").textContent = ch.name;
         $("bar-res-wrap").className = "bar res " + CLASSES[ch.cls].resClass;
@@ -2088,7 +2088,7 @@
             text.textContent = "\"How goes the fishing? You've caught " + q2.count + " of the three fish. Stand by the river and press Fish when the button appears.\"";
             reward.textContent = ""; primary.style.display = "none";
           } else if (q2.state === "ready") {
-            text.textContent = "\"Three fish, fresh as morning! The City will eat well tonight, " + G.ch.name + ". Take this, you've earned it.\"";
+            text.textContent = "\"Three fish, fresh as morning! Dawnhold will eat well tonight, " + G.ch.name + ". Take this, you've earned it.\"";
             reward.textContent = "Reward: 50 gold · 80 XP";
             primary.textContent = "Claim Reward"; primary.style.display = "";
           } else {
@@ -2100,7 +2100,7 @@
           var q3 = (G.ch.extra && G.ch.extra.quest3) || { state: "none" };
           title.textContent = "The Council's Letter";
           if (q3.state === "none") {
-            text.textContent = "\"The City runs on letters, traveller. Steward Halden in Dawnhollow Vale is waiting on one from the council — would you carry it to him? The road is long but the guards keep it safe.\"";
+            text.textContent = "\"Dawnhold runs on letters, traveller. Steward Halden in Dawnhollow Vale is waiting on one from the council — would you carry it to him? The road is long but the guards keep it safe.\"";
             reward.textContent = "Reward: 30 gold · 50 XP";
             primary.textContent = "Accept Quest"; primary.style.display = "";
           } else if (q3.state === "active") {
@@ -2123,7 +2123,7 @@
           } else if (q.state === "active") {
             text.textContent = "\"How goes the hunt? You've dealt with " + q.kills + " of the five beasts. The wilds begin east of the village — past the guards, mind.\"";
             if (letterActive) {
-              text.textContent += " \"Oh — and you carry a letter from the City council? Hand it over, I'll see it reaches the right hands.\"";
+              text.textContent += " \"Oh — and you carry a letter from the Dawnhold council? Hand it over, I'll see it reaches the right hands.\"";
               reward.textContent = "Letter delivery: 30 gold · 50 XP";
               primary.textContent = "Deliver Letter"; primary.style.display = "";
             } else { reward.textContent = ""; primary.style.display = "none"; }
@@ -2134,7 +2134,7 @@
           } else {
             text.textContent = "\"The Vale is quieter thanks to you. Rest by the well as long as you like — nothing can touch you inside the village.\"";
             if (letterActive) {
-              text.textContent += " \"Oh — and you carry a letter from the City council? Hand it over, I'll see it reaches the right hands.\"";
+              text.textContent += " \"Oh — and you carry a letter from the Dawnhold council? Hand it over, I'll see it reaches the right hands.\"";
               reward.textContent = "Letter delivery: 30 gold · 50 XP";
               primary.textContent = "Deliver Letter"; primary.style.display = "";
             } else { reward.textContent = ""; primary.style.display = "none"; }
@@ -2529,13 +2529,13 @@
         var zone = zoneOf(p.x, p.y);
         if (zone !== G.zone) {
           G.zone = zone;
-          G.zoneName = zone === "city" ? "The City" : zone === "road" ? "The Old Road" : "Dawnhollow Vale";
-          if (zone === "city") toast("You have entered the City.");
-          else if (zone === "road") toast("You are on the Old Road to the City.");
+          G.zoneName = zone === "city" ? "Dawnhold" : zone === "road" ? "The Old Road" : "Dawnhollow Vale";
+          if (zone === "city") toast("You have entered Dawnhold.");
+          else if (zone === "road") toast("You are on the Old Road to Dawnhold.");
         }
         $("zone-name").textContent = G.zoneName;
         var zs = $("zone-sub");
-        zs.textContent = zone === "city" ? (safe ? "City · Safe Zone" : "The City") : zone === "road" ? "The Old Road · Stay sharp" : safe ? "Village · Safe Zone" : "The Wilds · Stay sharp";
+        zs.textContent = zone === "city" ? (safe ? "Dawnhold · Safe Zone" : "Dawnhold") : zone === "road" ? "The Old Road · Stay sharp" : safe ? "Village · Safe Zone" : "The Wilds · Stay sharp";
         zs.classList.toggle("wild", !safe);
         var npc2 = nearNpc();
         $("btn-talk").classList.toggle("show", !!npc2);
@@ -2765,11 +2765,11 @@
         drawables.push({ y: G.halden.y, kind: "halden", o: G.halden });
         drawables.push({ y: SHOPKEEPER.y, kind: "shopkeeper", o: SHOPKEEPER });
         drawables.push({ y: ARMORER.y, kind: "armorer", o: ARMORER });
-        drawables.push({ y: GARRICK.y, kind: "citynpc", o: { x: GARRICK.x, y: GARRICK.y, name: "Smith Garrick", sub: "City Armory", cls: "armorer" } });
-        drawables.push({ y: ADA.y, kind: "citynpc", o: { x: ADA.x, y: ADA.y, name: "Merchant Ada", sub: "City Market", cls: "shopkeeper" } });
-        drawables.push({ y: MIRA.y, kind: "citynpc", o: { x: MIRA.x, y: MIRA.y, name: "Clerk Mira", sub: "City Clerk", cls: "shopkeeper" } });
+        drawables.push({ y: GARRICK.y, kind: "citynpc", o: { x: GARRICK.x, y: GARRICK.y, name: "Smith Garrick", sub: "Dawnhold Armory", cls: "armorer" } });
+        drawables.push({ y: ADA.y, kind: "citynpc", o: { x: ADA.x, y: ADA.y, name: "Merchant Ada", sub: "Dawnhold Market", cls: "shopkeeper" } });
+        drawables.push({ y: MIRA.y, kind: "citynpc", o: { x: MIRA.x, y: MIRA.y, name: "Clerk Mira", sub: "Dawnhold Clerk", cls: "shopkeeper" } });
         drawables.push({ y: TOMAS.y, kind: "citynpc", o: { x: TOMAS.x, y: TOMAS.y, name: "Old Tomas", sub: "Bait & Tackle", cls: "shopkeeper" } });
-        drawables.push({ y: GATEKEEPER.y, kind: "citynpc", o: { x: GATEKEEPER.x, y: GATEKEEPER.y, name: "Gate Captain", sub: "City Guard", cls: "guard" } });
+        drawables.push({ y: GATEKEEPER.y, kind: "citynpc", o: { x: GATEKEEPER.x, y: GATEKEEPER.y, name: "Gate Captain", sub: "Dawnhold Guard", cls: "guard" } });
         drawables.push({ y: NELL.y, kind: "citynpc", o: { x: NELL.x, y: NELL.y, name: "Baker Nell", sub: "Bakery", cls: "shopkeeper" } });
         drawables.push({ y: PIP.y, kind: "citynpc", o: { x: PIP.x, y: PIP.y, name: "Flower Seller Pip", sub: "Flowers", cls: "shopkeeper" } });
         drawables.push({ y: 1050, kind: "citynpc", o: { x: 3930, y: 1050, name: "Fisher", sub: "Fishing", cls: "shopkeeper" } });
@@ -2804,7 +2804,7 @@
             else { drawHalden(x, y, G.time); drawNamePlate(x, y - 40, "Traveling Merchant", "#a9ccff"); }
           } else if (d.kind === "guard") {
             drawGuard(x, y, o.face, G.time);
-            drawNamePlate(x, y - 40, o.city ? "City Guard" : "Vale Guard", "#f0c94e");
+            drawNamePlate(x, y - 40, o.city ? "Dawnhold Guard" : "Vale Guard", "#f0c94e");
           } else if (d.kind === "citynpc") {
             if (o.cls === "guard") drawGuard(x, y, 1, G.time);
             else drawCharacter(x, y, o.cls, 1, false, G.time);
