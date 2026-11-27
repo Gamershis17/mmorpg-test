@@ -1,0 +1,22 @@
+{
+  "name": "mmorpg-test",
+  "version": "0.2.0",
+  "description": "MMORPG test — Dawnhollow Vale. Slice 2: multiplayer (Node + WebSocket + Postgres/JSON).",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test/smoke.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "ws": "^8.23.0"
+  }
+}
