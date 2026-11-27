@@ -1,6 +1,7 @@
 "use strict";
 /* =====================================================================
-   MMORPG TEST — Slice 2: multiplayer server
+   MMORPG TEST — Slice 2: multiplayer server. Slice 3: the City, the Old
+   Road, the river, Hunter pet taming, fishing, and city quests.
    Express serves public/ (the game), WebSocket runs the shared world:
    player sync, server-owned enemies, world chat, server accounts +
    characters, shops, and the GM console (server-validated).
@@ -22,7 +23,10 @@ const GM_ACCOUNTS = (process.env.GM_ACCOUNTS || "cody")
 const DATABASE_URL = process.env.DATABASE_URL || "";
 
 function isGMName(name) {
-  return !!name && GM_ACCOUNTS.indexOf(String(name).toLowerCase()) >= 0;
+  // Exact match only: the list is split on commas, trimmed, and lowercased
+  // at startup, so "cody" never matches "codyfan" and "Gamershis17" matches
+  // regardless of how the account name was cased at registration.
+  return !!name && GM_ACCOUNTS.indexOf(String(name).trim().toLowerCase()) >= 0;
 }
 
 /* ---------------- shared game data (mirrors the client) ---------------- */
@@ -36,8 +40,29 @@ const ENEMY_TYPES = [
   { kind: "boar", name: "Wild Boar", hp: 62, dmg: 7, speed: 82, xp: 19, goldMin: 6, goldMax: 12, aggro: 165 },
   { kind: "slime", name: "Thorn Slime", hp: 30, dmg: 4, speed: 58, xp: 11, goldMin: 3, goldMax: 7, aggro: 150 },
 ];
-const WORLD = { w: 2600, h: 1800 };
+const WORLD = { w: 4200, h: 1800 };
 const VILLAGE = { x: 640, y: 900, r: 355 };
+// Slice 3 — the City (placeholder name until Cody names it) at the east end
+// of the world, reached by the Old Road. The river runs along the city's
+// east edge; its west bank is where players fish.
+const CITY = { x: 3550, y: 900, r: 430 };
+const CITY_GATE = { x: 3080, y: 900 };
+const RIVER = { x0: 3980, x1: 4200, y0: 150, y1: 1650 };
+const FISH_SPOTS = [{ x: 3945, y: 500 }, { x: 3945, y: 900 }, { x: 3945, y: 1300 }];
+const TAMABLE_TYPES = [
+  { kind: "otter", name: "River Otter", icon: "🦦", hp: 30, speed: 90, region: "river" },
+  { kind: "fox", name: "City Fox", icon: "🦊", hp: 36, speed: 110, region: "outskirts" },
+  { kind: "hawk", name: "Road Hawk", icon: "🦅", hp: 26, speed: 130, region: "road" },
+];
+const TAMABLE_TARGET = 6;
+const FISH = {
+  trout: { name: "River Trout", icon: "🐟", price: 8, desc: "A fresh river trout." },
+  silverfin: { name: "Silverfin", icon: "🐠", price: 20, desc: "A shimmering silverfin." },
+  carp: { name: "Golden Carp", icon: "🐡", price: 50, desc: "A rare golden carp!" },
+  boot: { name: "Old Boot", icon: "🥾", price: 1, desc: "An old boot. The river gives and the river takes." },
+};
+function inRiver(x, y) { return x >= RIVER.x0 && x <= RIVER.x1 && y >= RIVER.y0 && y <= RIVER.y1; }
+function zoneOf(x, y) { if (x > 3000) return "city"; if (x > 2650) return "road"; return "vale"; }
 const QUEST_NEED = 5;
 const LEVEL_CAP = 60;
 const GEAR = {
@@ -53,17 +78,38 @@ const GEAR = {
   leather_helm: { name: "Leather Helm", icon: "🪖", slot: "helm", hp: 40, price: 80, desc: "+40 Health" },
   chainmail_vest: { name: "Chainmail Vest", icon: "🛡️", slot: "chest", hp: 120, price: 200, desc: "+120 Health" },
   swift_boots: { name: "Swift Boots", icon: "🥾", slot: "boots", speed: 15, price: 90, desc: "+15 Speed" },
+  // ---- City Armory stock (sold by Smith Garrick in the City) ----
+  steel_blade: { name: "Steel Blade", icon: "🗡️", slot: "weapon", dmg: 16, price: 300, desc: "+16 Damage" },
+  steel_bow: { name: "Steel Bow", icon: "🏹", slot: "weapon", dmg: 16, price: 300, desc: "+16 Damage" },
+  steel_staff: { name: "Steel Staff", icon: "🔮", slot: "weapon", dmg: 16, price: 300, desc: "+16 Damage" },
+  knight_helm: { name: "Knight Helm", icon: "🪖", slot: "helm", hp: 100, price: 200, desc: "+100 Health" },
+  knight_armor: { name: "Knight Armor", icon: "🛡️", slot: "chest", hp: 260, price: 450, desc: "+260 Health" },
+  traveler_boots: { name: "Traveler Boots", icon: "🥾", slot: "boots", speed: 30, price: 220, desc: "+30 Speed" },
 };
 const ITEMS = {
   bandage: { name: "Bandage", icon: "🩹", healPct: 0.25, price: 10, desc: "Restores 25% health" },
   potion: { name: "Healing Potion", icon: "🧪", healPct: 0.5, price: 25, desc: "Restores 50% health" },
   gpotion: { name: "Greater Healing Potion", icon: "⚗️", healPct: 1.0, price: 60, desc: "Restores 100% health" },
+  city_bread: { name: "City Bread", icon: "🍞", healPct: 0.35, price: 15, desc: "Fresh from Baker Nell's oven. Restores 35% health" },
 };
 // General shop = consumables only. Armory = weapons + armor only.
 const SHOP_CATALOG = ["bandage", "potion", "gpotion"];
 const ARMORY_CATALOG = ["iron_sword", "apprentice_staff", "hunting_bow", "leather_helm", "chainmail_vest", "swift_boots"];
+// Slice 3 — city shops. The market and the fishing vendor sell consumables;
+// the city armory sells steel gear. All five shops share one handler.
+const CITY_SHOP_CATALOG = ["bandage", "potion", "gpotion", "city_bread"];
+const CITY_ARMORY_CATALOG = ["steel_blade", "steel_bow", "steel_staff", "knight_helm", "knight_armor", "traveler_boots"];
+const FISH_CATALOG = ["bandage", "potion", "city_bread"];
+const SHOPS = {
+  shop: { catalog: SHOP_CATALOG, gear: false },
+  armory: { catalog: ARMORY_CATALOG, gear: true },
+  cityshop: { catalog: CITY_SHOP_CATALOG, gear: false },
+  cityarmory: { catalog: CITY_ARMORY_CATALOG, gear: true },
+  fishshop: { catalog: FISH_CATALOG, gear: false },
+};
 function sellPrice(id) {
   if (ITEMS[id]) return Math.max(1, Math.floor(ITEMS[id].price / 2));
+  if (FISH[id]) return Math.max(1, Math.floor(FISH[id].price / 2));
   if (GEAR[id] && GEAR[id].price) return Math.max(1, Math.floor(GEAR[id].price / 2));
   return 250; // GM / OP gear flat resale
 }
@@ -73,7 +119,7 @@ function dist(ax, ay, bx, by) { const dx = ax - bx, dy = ay - by; return Math.sq
 function rand(a, b) { return a + Math.random() * (b - a); }
 function randi(a, b) { return Math.floor(rand(a, b + 1)); }
 function xpNeed(level) { return Math.round(80 * Math.pow(level, 1.32)); }
-function inSafeZone(x, y) { return dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r; }
+function inSafeZone(x, y) { return dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r || dist(x, y, CITY.x, CITY.y) < CITY.r; }
 function gearBonus(char) {
   const b = { hp: 0, dmg: 0, speed: 0 };
   if (char.gear) {
@@ -99,6 +145,23 @@ function newCharacter(name, cls) {
     level: 1, xp: 0, gold: 60, kills: 0,
     items: [], gear: { weapon: null, helm: null, chest: null, boots: null },
     quest: { state: "none", kills: 0 },
+    extra: { pets: [], zone: "vale", quest2: { state: "none", count: 0 }, quest3: { state: "none" } },
+  };
+}
+function sanitizeExtra(ex) {
+  // Slice 3 data: tamed pets, current zone, city quests. Defensive defaults
+  // so characters saved before slice 3 load cleanly.
+  const e = (ex && typeof ex === "object") ? ex : {};
+  const pets = Array.isArray(e.pets) ? e.pets.filter((pt) => pt && TAMABLE_TYPES.some((t) => t.kind === pt.type))
+    .map((pt) => ({ type: pt.type, name: String(pt.name || "").slice(0, 24) || TAMABLE_TYPES.find((t) => t.kind === pt.type).name })) : [];
+  return {
+    pets,
+    zone: ["vale", "road", "city"].indexOf(e.zone) >= 0 ? e.zone : "vale",
+    quest2: {
+      state: ["none", "active", "ready", "done"].indexOf(e.quest2 && e.quest2.state) >= 0 ? e.quest2.state : "none",
+      count: clamp(Math.floor((e.quest2 && e.quest2.count) || 0), 0, 3),
+    },
+    quest3: { state: ["none", "active", "done"].indexOf(e.quest3 && e.quest3.state) >= 0 ? e.quest3.state : "none" },
   };
 }
 function sanitizeChar(ch) {
@@ -122,6 +185,7 @@ function sanitizeChar(ch) {
       state: ["none", "active", "ready", "done"].indexOf(c.quest && c.quest.state) >= 0 ? c.quest.state : "none",
       kills: clamp(Math.floor((c.quest && c.quest.kills) || 0), 0, QUEST_NEED),
     },
+    extra: sanitizeExtra(c.extra),
   };
 }
 
@@ -157,8 +221,11 @@ const store = {
           "kills INTEGER NOT NULL DEFAULT 0, items JSONB NOT NULL DEFAULT '[]', " +
           "gear JSONB NOT NULL DEFAULT '{\"weapon\":null,\"helm\":null,\"chest\":null,\"boots\":null}', " +
           "quest JSONB NOT NULL DEFAULT '{\"state\":\"none\",\"kills\":0}', " +
+          "extra JSONB NOT NULL DEFAULT '{}', " +
           "UNIQUE(account_id, name))"
         );
+        // The live table predates slice 3 — add the column if it is missing.
+        await this.pool.query("ALTER TABLE characters ADD COLUMN IF NOT EXISTS extra JSONB NOT NULL DEFAULT '{}'");
         this.mode = "postgres";
         console.log("[store] Postgres connected (Neon).");
         return;
@@ -214,7 +281,7 @@ const store = {
       if (!r.rows.length) return null;
       const row = r.rows[0];
       const ch = await this.pool.query(
-        "SELECT name, cls, level, xp, gold, kills, items, gear, quest FROM characters WHERE account_id = $1 ORDER BY id",
+        "SELECT name, cls, level, xp, gold, kills, items, gear, quest, extra FROM characters WHERE account_id = $1 ORDER BY id",
         [row.id]
       );
       return {
@@ -222,7 +289,7 @@ const store = {
         isGM: isGMName(row.name) || !!row.is_gm,
         characters: ch.rows.map((c) => sanitizeChar({
           name: c.name, cls: c.cls, level: c.level, xp: c.xp, gold: c.gold,
-          kills: c.kills, items: c.items, gear: c.gear, quest: c.quest,
+          kills: c.kills, items: c.items, gear: c.gear, quest: c.quest, extra: c.extra,
         })),
       };
     }
@@ -256,10 +323,10 @@ const store = {
       await this.pool.query("DELETE FROM characters WHERE account_id = $1", [id]);
       for (const ch of (acc.characters || []).map(sanitizeChar)) {
         await this.pool.query(
-          "INSERT INTO characters (account_id, name, cls, level, xp, gold, kills, items, gear, quest) " +
-          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+          "INSERT INTO characters (account_id, name, cls, level, xp, gold, kills, items, gear, quest, extra) " +
+          "VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
           [id, ch.name, ch.cls, ch.level, ch.xp, ch.gold, ch.kills,
-           JSON.stringify(ch.items), JSON.stringify(ch.gear), JSON.stringify(ch.quest)]
+           JSON.stringify(ch.items), JSON.stringify(ch.gear), JSON.stringify(ch.quest), JSON.stringify(ch.extra || {})]
         );
       }
       return;
@@ -411,6 +478,8 @@ app.delete("/api/characters/:name", async (req, res) => {
 /* ---------------- game state ---------------- */
 const players = new Map(); // ws -> player
 let enemies = [];          // server-owned
+let tamables = [];         // wild pets hunters can tame {id, kind, name, x, y, r, wanderA, wanderT, homeX, homeY}
+let nextTamableId = 1;
 let friendlies = [];       // summoned NPCs {id, kind, owner, x, y, face, atkCd, moving}
 let nextEnemyId = 1;
 let nextFriendlyId = 1;
@@ -423,7 +492,7 @@ function spawnSpot() {
   do {
     x = rand(1120, WORLD.w - 90); y = rand(90, WORLD.h - 90);
     tries++;
-  } while (tries < 24 && (dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r + 170 || dist(x, y, 1980, 1420) < 250));
+  } while (tries < 24 && (dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r + 170 || dist(x, y, 1980, 1420) < 250 || dist(x, y, CITY.x, CITY.y) < CITY.r + 170 || inRiver(x, y)));
   return { x, y };
 }
 function makeEnemy(type, x, y, opts) {
@@ -451,6 +520,39 @@ function spawnWildEnemy() {
   const s = spawnSpot();
   enemies.push(makeEnemy(type, s.x, s.y, {}));
 }
+// City building footprints (mirrors the client map) — nothing wild spawns inside one.
+const CITY_BUILDINGS = [
+  { x: 3280, y: 600, w: 150, h: 110 }, { x: 3680, y: 600, w: 170, h: 120 },
+  { x: 3280, y: 1080, w: 140, h: 100 }, { x: 3130, y: 560, w: 130, h: 100 },
+  { x: 3820, y: 1120, w: 140, h: 110 }, { x: 3150, y: 1260, w: 130, h: 100 },
+  { x: 3720, y: 330, w: 140, h: 100 }, { x: 3400, y: 330, w: 130, h: 100 },
+];
+function inCityBuilding(x, y) {
+  for (const b of CITY_BUILDINGS) {
+    if (x >= b.x - 10 && x <= b.x + b.w + 10 && y >= b.y - 10 && y <= b.y + b.h + 10) return true;
+  }
+  return false;
+}
+function tamableSpot(type) {
+  // Road hawks along the Old Road, river otters on the west bank (outside
+  // the city safe zone), city foxes on the city outskirts.
+  let x = 0, y = 0, tries = 0;
+  do {
+    if (type.region === "river") { x = rand(3830, 3960); y = rand(220, 1580); }
+    else if (type.region === "road") { x = rand(2620, 2980); y = rand(700, 1100); }
+    else { x = rand(3050, 3900); y = rand(260, 1540); }
+    tries++;
+  } while (tries < 30 && (inSafeZone(x, y) || inRiver(x, y) || inCityBuilding(x, y)));
+  return { x, y };
+}
+function spawnTamable() {
+  const type = TAMABLE_TYPES[randi(0, TAMABLE_TYPES.length - 1)];
+  const s = tamableSpot(type);
+  tamables.push({
+    id: nextTamableId++, kind: type.kind, name: type.name, x: s.x, y: s.y,
+    r: 13, wanderA: rand(0, Math.PI * 2), wanderT: rand(1, 3), homeX: s.x, homeY: s.y,
+  });
+}
 function summonSpotNear(x, y) {
   const a = rand(0, Math.PI * 2);
   let sx = x + Math.cos(a) * 130, sy = y + Math.sin(a) * 130;
@@ -463,6 +565,14 @@ function summonSpotNear(x, y) {
 }
 function guardPos(i, nowMs) {
   const elapsed = (nowMs - serverStart) / 1000;
+  if (i >= 3) { // city guards patrol the City edge (two of them)
+    const angle = Math.PI * (i - 3) + elapsed * 0.05;
+    return {
+      x: CITY.x + Math.cos(angle) * (CITY.r - 6),
+      y: CITY.y + Math.sin(angle) * (CITY.r - 6) * 0.92,
+      face: Math.cos(angle + 0.4) >= 0 ? 1 : -1,
+    };
+  }
   const angle = (Math.PI * 2 / 3) * i + elapsed * 0.055;
   return {
     x: VILLAGE.x + Math.cos(angle) * (VILLAGE.r - 6),
@@ -470,7 +580,7 @@ function guardPos(i, nowMs) {
     face: Math.cos(angle + 0.4) >= 0 ? 1 : -1,
   };
 }
-const guardCd = [0, 0, 0];
+const guardCd = [0, 0, 0, 0, 0];
 
 function publicEnemy(e) {
   return { id: e.id, kind: e.kind, name: e.name, x: Math.round(e.x), y: Math.round(e.y), hp: e.hp, maxHp: e.maxHp, scale: e.scale, boss: e.boss };
@@ -482,6 +592,7 @@ function publicPlayer(p) {
     x: Math.round(p.x), y: Math.round(p.y), face: p.face, moving: p.moving,
     hp: Math.ceil(p.hp), maxHp: st.maxHp, dead: p.dead,
     pet: p.pet ? { x: Math.round(p.pet.x), y: Math.round(p.pet.y), hp: Math.ceil(p.pet.hp), maxHp: p.pet.maxHp, level: p.char.level } : null,
+    tamed: (p.tamed || []).map((t) => ({ type: t.type, name: t.name, level: p.char.level, x: Math.round(t.x), y: Math.round(t.y), hp: Math.ceil(t.hp), maxHp: t.maxHp })),
   };
 }
 function send(ws, msg) {
@@ -494,7 +605,7 @@ function sendChar(p) {
     char: {
       name: p.char.name, cls: p.char.cls, level: p.char.level, xp: p.char.xp,
       gold: p.char.gold, kills: p.char.kills, items: p.char.items, gear: p.char.gear,
-      quest: p.char.quest, hp: Math.ceil(p.hp), maxHp: st.maxHp,
+      quest: p.char.quest, extra: p.char.extra, hp: Math.ceil(p.hp), maxHp: st.maxHp,
     },
   });
   p.dirty = true;
@@ -570,8 +681,8 @@ function tick() {
     e.x = clamp(e.x, 30, WORLD.w - 30);
     e.y = clamp(e.y, 30, WORLD.h - 30);
   }
-  // --- guards patrol the village edge and shoot anything close ---
-  for (let gi = 0; gi < 3; gi++) {
+  // --- guards patrol the village edge and the City edge, and shoot anything close ---
+  for (let gi = 0; gi < 5; gi++) {
     const gp = guardPos(gi, now);
     guardCd[gi] -= dt;
     if (guardCd[gi] > 0) continue;
@@ -652,6 +763,22 @@ function tick() {
   }
   // --- wild respawn maintenance ---
   if (enemies.filter((e) => !e.boss).length < WILD_TARGET) spawnWildEnemy();
+  // --- tamable pets: wander their home ground, never fight, never enter safe zones ---
+  for (let i = tamables.length - 1; i >= 0; i--) {
+    const t = tamables[i];
+    t.wanderT -= dt;
+    if (t.wanderT <= 0) { t.wanderT = rand(1.5, 3.5); t.wanderA = rand(0, Math.PI * 2); }
+    const type = TAMABLE_TYPES.find((x) => x.kind === t.kind) || TAMABLE_TYPES[0];
+    const wx = t.x + Math.cos(t.wanderA) * type.speed * 0.3 * dt;
+    const wy = t.y + Math.sin(t.wanderA) * type.speed * 0.3 * dt;
+    if (!inSafeZone(wx, wy) && !inRiver(wx, wy) && !inCityBuilding(wx, wy)) { t.x = wx; t.y = wy; }
+    else t.wanderA += Math.PI * 0.7;
+    const dH = dist(t.x, t.y, t.homeX, t.homeY);
+    if (dH > 320) { t.x += (t.homeX - t.x) / dH * type.speed * 0.45 * dt; t.y += (t.homeY - t.y) / dH * type.speed * 0.45 * dt; }
+    t.x = clamp(t.x, 30, WORLD.w - 30);
+    t.y = clamp(t.y, 30, WORLD.h - 30);
+  }
+  if (tamables.length < TAMABLE_TARGET) spawnTamable();
 }
 function hurtPlayerServer(p, dmg) {
   if (p.dead || inSafeZone(p.x, p.y)) return;
@@ -673,7 +800,8 @@ function broadcastSnap() {
     t: "snap",
     players: plist,
     enemies: enemies.map(publicEnemy),
-    guards: [0, 1, 2].map((i) => guardPos(i, now)),
+    tamables: tamables.map((t) => ({ id: t.id, kind: t.kind, name: t.name, x: Math.round(t.x), y: Math.round(t.y) })),
+    guards: [0, 1, 2, 3, 4].map((i) => guardPos(i, now)),
     friendlies: friendlies.map((fr) => ({ id: fr.id, kind: fr.kind, x: Math.round(fr.x), y: Math.round(fr.y), face: fr.face, owner: fr.owner.char.name })),
   };
   const raw = JSON.stringify(snap);
@@ -723,17 +851,26 @@ wss.on("connection", (ws) => {
           const ch = (acc.characters || []).find((c) => c.name === String(msg.char || ""));
           if (!ch) { send(ws, { t: "error", message: "Character not found." }); return ws.close(); }
           const st = classStats(ch);
+          // Log back in where you left off: village well, the Old Road, or the City gate.
+          const spawn = ch.extra && ch.extra.zone === "city" ? { x: CITY_GATE.x + 40, y: CITY_GATE.y }
+            : ch.extra && ch.extra.zone === "road" ? { x: 2700, y: 900 }
+            : { x: VILLAGE.x + 30, y: VILLAGE.y + 120 };
           player = {
             id: nextPlayerId++, ws, token: msg.token, accountName: acc.name, guest: !!sess.guest,
             isGM: isGMName(acc.name),
             char: ch,
-            x: VILLAGE.x + 30, y: VILLAGE.y + 120, face: 1, moving: false,
+            x: spawn.x, y: spawn.y, face: 1, moving: false,
             hp: st.maxHp, lastHurt: 0, lastAtk: 0, lastPetAtk: 0,
-            lastPos: { x: VILLAGE.x + 30, y: VILLAGE.y + 120, at: Date.now() },
-            lastChat: 0, dead: false, dirty: false,
+            lastPos: { x: spawn.x, y: spawn.y, at: Date.now() },
+            lastChat: 0, lastFish: 0, dead: false, dirty: false,
             pet: ch.cls === "hunter"
-              ? { x: VILLAGE.x - 30, y: VILLAGE.y + 150, hp: 80 + (ch.level - 1) * 10, maxHp: 80 + (ch.level - 1) * 10 }
+              ? { x: spawn.x - 60, y: spawn.y + 30, hp: 80 + (ch.level - 1) * 10, maxHp: 80 + (ch.level - 1) * 10 }
               : null,
+            tamed: (ch.extra && ch.extra.pets || []).map((pt) => ({
+              type: pt.type, name: pt.name,
+              x: spawn.x - 60 - Math.random() * 40, y: spawn.y + 60 + Math.random() * 30,
+              hp: 60 + (ch.level - 1) * 8, maxHp: 60 + (ch.level - 1) * 8, lastAtk: 0,
+            })),
           };
           players.set(ws, player);
           send(ws, {
@@ -742,6 +879,9 @@ wss.on("connection", (ws) => {
             catalog: {
               shop: SHOP_CATALOG.map((id) => ({ id, ...ITEMS[id] })),
               armory: ARMORY_CATALOG.map((id) => ({ id, ...GEAR[id] })),
+              cityshop: CITY_SHOP_CATALOG.map((id) => ({ id, ...ITEMS[id] })),
+              cityarmory: CITY_ARMORY_CATALOG.map((id) => ({ id, ...GEAR[id] })),
+              fishshop: FISH_CATALOG.map((id) => ({ id, ...ITEMS[id] })),
             },
           });
           sendChar(player);
@@ -761,6 +901,10 @@ wss.on("connection", (ws) => {
       else if (msg.t === "atk") handleAttack(player, msg);
       else if (msg.t === "chat") handleChat(player, msg);
       else if (msg.t === "quest") handleQuest(player, msg);
+      else if (msg.t === "quest2") handleQuest2(player, msg);
+      else if (msg.t === "quest3") handleQuest3(player, msg);
+      else if (msg.t === "tame") handleTame(player, msg);
+      else if (msg.t === "fish") handleFish(player);
       else if (msg.t === "respawn") handleRespawn(player);
       else if (msg.t === "shop") handleShop(player, msg);
       else if (msg.t === "gm") handleGm(player, msg);
@@ -785,8 +929,10 @@ wss.on("connection", (ws) => {
 });
 
 function handlePos(p, msg) {
-  const nx = clamp(Number(msg.x) || p.x, 24, WORLD.w - 24);
-  const ny = clamp(Number(msg.y) || p.y, 24, WORLD.h - 24);
+  let nx = clamp(Number(msg.x) || p.x, 24, WORLD.w - 24);
+  let ny = clamp(Number(msg.y) || p.y, 24, WORLD.h - 24);
+  // The river is water, not walkable — push back to the west bank.
+  if (inRiver(nx, ny)) nx = RIVER.x0 - 24;
   // Anti-teleport: allow whatever the player could legitimately have walked
   // since their last accepted position, plus a margin. A fast joystick
   // sprint can never trip this — only an impossible jump inside a short
@@ -803,9 +949,21 @@ function handlePos(p, msg) {
   p.face = msg.face === -1 ? -1 : 1;
   p.moving = !!msg.moving;
   p.lastPos = { x: nx, y: ny, at: now };
+  if (p.char.extra) {
+    const z = zoneOf(nx, ny);
+    if (p.char.extra.zone !== z) { p.char.extra.zone = z; p.dirty = true; }
+  }
   if (msg.pet && p.pet) {
     p.pet.x = clamp(Number(msg.pet.x) || p.pet.x, 24, WORLD.w - 24);
     p.pet.y = clamp(Number(msg.pet.y) || p.pet.y, 24, WORLD.h - 24);
+  }
+  if (Array.isArray(msg.tamed) && p.tamed) {
+    msg.tamed.forEach((tp, i) => {
+      const t = p.tamed[i];
+      if (!t || !tp) return;
+      t.x = clamp(Number(tp.x) || t.x, 24, WORLD.w - 24);
+      t.y = clamp(Number(tp.y) || t.y, 24, WORLD.h - 24);
+    });
   }
 }
 
@@ -824,6 +982,16 @@ function handleAttack(p, msg) {
     e.hp -= dmg;
     e.lastHitBy = p;
     send(p.ws, { t: "hit", id: e.id, dmg, crit: false, from: "pet" });
+  } else if (msg.from === "tamed") {
+    const t = p.tamed && p.tamed[Number(msg.petIdx) || 0];
+    if (!t) return;
+    if (now - (t.lastAtk || 0) < 800) return;
+    if (dist(t.x, t.y, e.x, e.y) > 250 + e.r) return;
+    t.lastAtk = now;
+    const dmg = Math.round((5 + (p.char.level - 1)) * rand(0.85, 1.2));
+    e.hp -= dmg;
+    e.lastHitBy = p;
+    send(p.ws, { t: "hit", id: e.id, dmg, crit: false, from: "tamed" });
   } else {
     const st = classStats(p.char);
     if (now - p.lastAtk < st.atkRate * 1000) return;
@@ -864,6 +1032,95 @@ function handleQuest(p, msg) {
   }
 }
 
+function handleTame(p, msg) {
+  const fail = (error) => send(p.ws, { t: "tameResult", ok: false, error });
+  if (p.dead) return fail("You are dead.");
+  if (p.char.cls !== "hunter") return fail("Only Hunters can tame pets.");
+  if (!p.char.extra) p.char.extra = sanitizeExtra({});
+  const ex = p.char.extra;
+  if (ex.pets.length >= 2) return fail("You already have two tamed pets.");
+  const t = tamables.find((x) => x.id === Number(msg.id));
+  if (!t) return fail("That pet is gone.");
+  if (dist(p.x, p.y, t.x, t.y) > 130) return fail("Get closer to tame it.");
+  const type = TAMABLE_TYPES.find((x) => x.kind === t.kind) || TAMABLE_TYPES[0];
+  ex.pets.push({ type: t.kind, name: t.name });
+  const idx = tamables.indexOf(t);
+  if (idx >= 0) tamables.splice(idx, 1);
+  p.tamed.push({
+    type: t.kind, name: t.name,
+    x: p.x - 40, y: p.y + 50,
+    hp: 60 + (p.char.level - 1) * 8, maxHp: 60 + (p.char.level - 1) * 8, lastAtk: 0,
+  });
+  p.dirty = true;
+  sendChar(p);
+  send(p.ws, { t: "tameResult", ok: true, pet: { type: t.kind, name: t.name, icon: type.icon } });
+  setTimeout(() => { if (tamables.length < TAMABLE_TARGET) spawnTamable(); }, 8000);
+}
+function rollFish() {
+  const r = Math.random();
+  if (r < 0.55) return "trout";
+  if (r < 0.85) return "silverfin";
+  if (r < 0.97) return "carp";
+  return "boot";
+}
+function handleFish(p) {
+  const fail = (error) => send(p.ws, { t: "fishResult", ok: false, error });
+  if (p.dead) return fail("You are dead.");
+  const now = Date.now();
+  if (now - (p.lastFish || 0) < 4000) return fail("Wait a moment before casting again.");
+  const near = FISH_SPOTS.some((s) => dist(p.x, p.y, s.x, s.y) < 110);
+  if (!near) return fail("Stand by the river to fish.");
+  p.lastFish = now;
+  const id = rollFish();
+  const found = p.char.items.find((it) => !it.gear && it.id === id);
+  if (found) found.qty = (found.qty || 0) + 1;
+  else p.char.items.push({ id, qty: 1 });
+  const ex = p.char.extra;
+  if (ex && ex.quest2 && ex.quest2.state === "active") {
+    ex.quest2.count = Math.min(3, (ex.quest2.count || 0) + 1);
+    if (ex.quest2.count >= 3) ex.quest2.state = "ready";
+  }
+  p.dirty = true;
+  sendChar(p);
+  send(p.ws, { t: "fishResult", ok: true, id, name: FISH[id].name, icon: FISH[id].icon });
+}
+function handleQuest2(p, msg) {
+  const q = p.char.extra && p.char.extra.quest2;
+  if (!q) return;
+  if (msg.action === "accept" && q.state === "none") {
+    q.state = "active"; q.count = 0;
+    p.dirty = true; sendChar(p);
+    send(p.ws, { t: "questResult", ok: true, action: "accept", quest: "fish" });
+  } else if (msg.action === "claim" && q.state === "ready") {
+    q.state = "done";
+    p.char.gold += 50;
+    gainXpServer(p, 80);
+    p.dirty = true; sendChar(p);
+    send(p.ws, { t: "questResult", ok: true, action: "claim", quest: "fish", gold: 50, xp: 80 });
+  } else {
+    send(p.ws, { t: "questResult", ok: false, action: msg.action || "", quest: "fish", error: "Nothing to do right now." });
+  }
+}
+function handleQuest3(p, msg) {
+  const q = p.char.extra && p.char.extra.quest3;
+  if (!q) return;
+  if (msg.action === "accept" && q.state === "none") {
+    q.state = "active";
+    p.dirty = true; sendChar(p);
+    send(p.ws, { t: "questResult", ok: true, action: "accept", quest: "letter" });
+  } else if (msg.action === "deliver" && q.state === "active") {
+    if (dist(p.x, p.y, VILLAGE.x, VILLAGE.y) > VILLAGE.r) {
+      return send(p.ws, { t: "questResult", ok: false, action: "deliver", quest: "letter", error: "Find Steward Halden in the village." });
+    }
+    q.state = "done";
+    p.char.gold += 30;
+    gainXpServer(p, 50);
+    p.dirty = true; sendChar(p);
+    send(p.ws, { t: "questResult", ok: true, action: "deliver", quest: "letter", gold: 30, xp: 50 });
+  } else {
+    send(p.ws, { t: "questResult", ok: false, action: msg.action || "", quest: "letter", error: "Nothing to do right now." });
+  }
+}
 function handleRespawn(p) {
   if (!p.dead) return;
   p.dead = false;
@@ -872,6 +1129,7 @@ function handleRespawn(p) {
   p.x = VILLAGE.x + 30; p.y = VILLAGE.y + 120;
   p.lastPos = { x: p.x, y: p.y, at: Date.now() };
   if (p.pet) { p.pet.hp = p.pet.maxHp; p.pet.x = p.x - 50; p.pet.y = p.y + 26; }
+  if (p.tamed) p.tamed.forEach((t, i) => { t.hp = t.maxHp; t.x = p.x - 50 - i * 30; t.y = p.y + 26 + i * 20; });
   send(p.ws, { t: "respawned", x: p.x, y: p.y, hp: p.hp });
   sendChar(p);
 }
@@ -879,16 +1137,17 @@ function handleRespawn(p) {
 function handleShop(p, msg) {
   const ch = p.char;
   const fail = (error) => send(p.ws, { t: "shopResult", ok: false, error });
+  const shopDef = SHOPS[String(msg.shop || "")];
+  if (!shopDef) return fail("No such shop.");
   if (msg.action === "buy") {
     const id = String(msg.id || "");
     const qty = clamp(Math.floor(Number(msg.qty) || 1), 1, 99);
-    let def = null, isGear = false;
-    if (msg.shop === "shop" && ITEMS[id]) def = ITEMS[id];
-    else if (msg.shop === "armory" && GEAR[id] && GEAR[id].price) { def = GEAR[id]; isGear = true; }
-    if (!def) return fail("That item is not sold here.");
+    if (shopDef.catalog.indexOf(id) < 0) return fail("That item is not sold here.");
+    const def = shopDef.gear ? GEAR[id] : ITEMS[id];
+    if (!def || !def.price) return fail("That item is not sold here.");
     const price = def.price * qty;
     if (ch.gold < price) return fail("Not enough gold — you need " + price + ".");
-    if (isGear) {
+    if (shopDef.gear) {
       if (ch.items.some((it) => it.gear && it.id === id)) return fail("You already own that.");
       ch.items.push({ id, gear: true });
     } else {
@@ -949,6 +1208,7 @@ function handleGm(p, msg) {
         name: ch.name, cls: ch.cls, level: ch.level, xp: ch.xp, gold: ch.gold,
         kills: ch.kills, hp: Math.ceil(target.hp), maxHp: st.maxHp, dmg: st.dmg,
         speed: st.speed, items: ch.items, gear: ch.gear, quest: ch.quest,
+        pets: (ch.extra && ch.extra.pets || []).map((pt) => pt.name),
       });
       return;
     }
@@ -1045,6 +1305,7 @@ setInterval(() => {
 
 /* ---------------- startup ---------------- */
 for (let s = 0; s < WILD_TARGET; s++) spawnWildEnemy();
+for (let s = 0; s < TAMABLE_TARGET; s++) spawnTamable();
 let tickCount = 0;
 setInterval(() => {
   try { tick(); } catch (e) { console.log("[tick] " + (e && e.message ? e.message : e)); }
