@@ -1,6 +1,6 @@
 "use strict";
 /* =====================================================================
-   MMORPG TEST — Slice 2: multiplayer server. Slice 3: the City, the Old
+   MMORPG TEST — Slice 2: multiplayer server. Slice 3: Dawnhold, the Old
    Road, the river, Hunter pet taming, fishing, and city quests.
    Express serves public/ (the game), WebSocket runs the shared world:
    player sync, server-owned enemies, world chat, server accounts +
@@ -42,7 +42,7 @@ const ENEMY_TYPES = [
 ];
 const WORLD = { w: 4200, h: 1800 };
 const VILLAGE = { x: 640, y: 900, r: 355 };
-// Slice 3 — the City (placeholder name until Cody names it) at the east end
+// Slice 3 — Dawnhold, named by Cody at the east end
 // of the world, reached by the Old Road. The river runs along the city's
 // east edge; its west bank is where players fish.
 const CITY = { x: 3550, y: 900, r: 430 };
@@ -90,7 +90,7 @@ const ITEMS = {
   bandage: { name: "Bandage", icon: "🩹", healPct: 0.25, price: 10, desc: "Restores 25% health" },
   potion: { name: "Healing Potion", icon: "🧪", healPct: 0.5, price: 25, desc: "Restores 50% health" },
   gpotion: { name: "Greater Healing Potion", icon: "⚗️", healPct: 1.0, price: 60, desc: "Restores 100% health" },
-  city_bread: { name: "City Bread", icon: "🍞", healPct: 0.35, price: 15, desc: "Fresh from Baker Nell's oven. Restores 35% health" },
+  city_bread: { name: "Dawnhold Bread", icon: "🍞", healPct: 0.35, price: 15, desc: "Fresh from Baker Nell's oven. Restores 35% health" },
 };
 // General shop = consumables only. Armory = weapons + armor only.
 const SHOP_CATALOG = ["bandage", "potion", "gpotion"];
