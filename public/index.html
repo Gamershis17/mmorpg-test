@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="color-scheme" content="dark" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0d1b2a" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="icon" href="data:," />
     <title>MMORPG test</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -840,25 +843,57 @@
         if (m.t === "error") { toast(m.message || "Server error."); return; }
         if (!G) return; // messages before entering the world are ignored
         if (m.t === "snap") {
+          // Carry display positions across snapshots so remote entities can
+          // be interpolated instead of teleporting to each new snapshot.
+          var prevPlayers = {};
+          MP.players.forEach(function (pl) { prevPlayers[pl.id] = pl; });
           MP.players = (m.players || []).filter(function (pl) { return pl.id !== MP.selfId; });
+          MP.players.forEach(function (pl) {
+            var prev = prevPlayers[pl.id];
+            if (prev) {
+              pl.dx = prev.dx; pl.dy = prev.dy;
+              if (prev.pet && pl.pet) { pl.pet.dx = prev.pet.dx; pl.pet.dy = prev.pet.dy; }
+            }
+          });
           var flashById = {};
-          G.enemies.forEach(function (e) { if (e.id) flashById[e.id] = e.flash || 0; });
+          var prevEnemies = {};
+          G.enemies.forEach(function (e) { if (e.id) { flashById[e.id] = e.flash || 0; prevEnemies[e.id] = e; } });
           G.enemies = (m.enemies || []).map(function (se) {
+            var prev = prevEnemies[se.id];
             return { id: se.id, kind: se.kind, name: se.name, x: se.x, y: se.y,
+              dx: prev ? prev.dx : se.x, dy: prev ? prev.dy : se.y,
               r: (se.kind === "slime" ? 15 : 16) * (se.scale || 1),
               hp: se.hp, maxHp: se.maxHp, dmg: 0, speed: 0, xp: 0, goldMin: 0, goldMax: 0,
               aggro: 0, atkCd: 0, wanderA: 0, wanderT: 0, homeX: se.x, homeY: se.y,
               flash: flashById[se.id] || 0, scale: se.scale || 1, boss: !!se.boss };
           });
-          G.guards = (m.guards || []).map(function (g) { return { x: g.x, y: g.y, face: g.face, atkCd: 0, angle: 0 }; });
-          G.friendlies = (m.friendlies || []).map(function (fr) { return { id: fr.id, kind: fr.kind, x: fr.x, y: fr.y, face: fr.face, atkCd: 0, moving: false, owner: fr.owner }; });
+          var prevGuards = G.guards;
+          G.guards = (m.guards || []).map(function (g, i) {
+            var prev = prevGuards[i];
+            return { x: g.x, y: g.y, face: g.face, atkCd: 0, angle: 0, dx: prev ? prev.dx : g.x, dy: prev ? prev.dy : g.y };
+          });
+          var prevFr = {};
+          G.friendlies.forEach(function (fr) { if (fr.id) prevFr[fr.id] = fr; });
+          G.friendlies = (m.friendlies || []).map(function (fr) {
+            var prev = prevFr[fr.id];
+            return { id: fr.id, kind: fr.kind, x: fr.x, y: fr.y, face: fr.face, atkCd: 0, moving: false, owner: fr.owner, dx: prev ? prev.dx : fr.x, dy: prev ? prev.dy : fr.y };
+          });
           var self = null;
           (m.players || []).forEach(function (pl) { if (pl.id === MP.selfId) self = pl; });
           if (self) {
             if (MP.lastSelfHp !== null && self.hp < MP.lastSelfHp) G.player.hurtT = 0.15;
             MP.lastSelfHp = self.hp;
             G.player.hp = Math.min(self.hp, G.stats.maxHp);
-            if (G.pet && self.pet) { G.pet.hp = Math.min(self.pet.hp, G.pet.maxHp); G.pet.x = self.pet.x; G.pet.y = self.pet.y; }
+            if (G.pet && self.pet) {
+              G.pet.hp = Math.min(self.pet.hp, G.pet.maxHp);
+              // Fang's position is owned by the local sim — the server only
+              // echoes what we sent, so the echo is always stale. Overwriting
+              // from it every snap yanked Fang backward = rubberbanding.
+              // Ignore the echo unless we genuinely disagree; on real
+              // disagreement, correct the position and let the display
+              // interpolation ease Fang there smoothly instead of snapping.
+              if (dist(G.pet.x, G.pet.y, self.pet.x, self.pet.y) >= 150) { G.pet.x = self.pet.x; G.pet.y = self.pet.y; }
+            }
             if (self.dead && !G.dead) { G.dead = true; $("death-overlay").classList.add("show"); }
           }
           return;
@@ -2136,6 +2171,30 @@
         ctx.fillRect(x + 4, y - 2 + bob, 10, 8);
       }
 
+      /* ----- remote-entity interpolation -----
+         Snapshots arrive 10/s; the drawn position eases toward the latest
+         snapshot so remote players, enemies, guards, friendlies and pets
+         glide instead of jumping. Authoritative x/y are never touched —
+         combat, targeting and logic still use them. Local player movement
+         is untouched (it has no display position). ----- */
+      function dispX(o) { return (MP.online && o.dx !== undefined) ? o.dx : o.x; }
+      function dispY(o) { return (MP.online && o.dy !== undefined) ? o.dy : o.y; }
+      function easeEntity(o, dt) {
+        if (o.dx === undefined || o.dy === undefined) { o.dx = o.x; o.dy = o.y; return; }
+        var ddx = o.x - o.dx, ddy = o.y - o.dy;
+        if (ddx * ddx + ddy * ddy > 400 * 400) { o.dx = o.x; o.dy = o.y; return; } // teleport / respawn: snap
+        var k = Math.min(1, dt * 12);
+        o.dx += ddx * k; o.dy += ddy * k;
+      }
+      function easeRemote(dt) {
+        if (!MP.online) return;
+        MP.players.forEach(function (op) { easeEntity(op, dt); if (op.pet) easeEntity(op.pet, dt); });
+        G.enemies.forEach(function (e) { easeEntity(e, dt); });
+        G.guards.forEach(function (gd) { easeEntity(gd, dt); });
+        G.friendlies.forEach(function (fr) { easeEntity(fr, dt); });
+        if (G.pet) easeEntity(G.pet, dt);
+      }
+
       function draw() {
         var vw = window.innerWidth, vh = window.innerHeight;
         var cam = G.cam;
@@ -2155,22 +2214,22 @@
         ctx.restore();
 
         var drawables = [];
-        G.enemies.forEach(function (e) { drawables.push({ y: e.y, kind: "enemy", o: e }); });
-        G.guards.forEach(function (gd) { drawables.push({ y: gd.y, kind: "guard", o: gd }); });
-        G.friendlies.forEach(function (fr) { drawables.push({ y: fr.y, kind: "friendly", o: fr }); });
+        G.enemies.forEach(function (e) { drawables.push({ y: dispY(e), kind: "enemy", o: e }); });
+        G.guards.forEach(function (gd) { drawables.push({ y: dispY(gd), kind: "guard", o: gd }); });
+        G.friendlies.forEach(function (fr) { drawables.push({ y: dispY(fr), kind: "friendly", o: fr }); });
         drawables.push({ y: G.halden.y, kind: "halden", o: G.halden });
         drawables.push({ y: SHOPKEEPER.y, kind: "shopkeeper", o: SHOPKEEPER });
         drawables.push({ y: ARMORER.y, kind: "armorer", o: ARMORER });
         if (MP.online) MP.players.forEach(function (op) {
-          if (op.pet) drawables.push({ y: op.pet.y, kind: "otherpet", o: op.pet });
-          drawables.push({ y: op.y, kind: "other", o: op });
+          if (op.pet) drawables.push({ y: dispY(op.pet), kind: "otherpet", o: op.pet });
+          drawables.push({ y: dispY(op), kind: "other", o: op });
         });
-        if (G.pet) drawables.push({ y: G.pet.y, kind: "pet", o: G.pet });
+        if (G.pet) drawables.push({ y: dispY(G.pet), kind: "pet", o: G.pet });
         drawables.push({ y: G.player.y, kind: "player", o: G.player });
         drawables.sort(function (a, b) { return a.y - b.y; });
 
         drawables.forEach(function (d) {
-          var o = d.o, x = o.x - cam.x, y = o.y - cam.y;
+          var o = d.o, x = dispX(o) - cam.x, y = dispY(o) - cam.y;
           if (x < -70 || y < -80 || x > vw + 70 || y > vh + 80) return;
           if (d.kind === "enemy") {
             var es = o.scale || 1;
@@ -2293,6 +2352,7 @@
         var dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
         lastTs = ts;
         update(dt);
+        easeRemote(dt);
         draw();
         rafId = requestAnimationFrame(loop);
       }
@@ -2474,6 +2534,18 @@
       });
 
       buildWorld();
+    </script>
+    <script>
+      // Register the service worker for install-as-app support. Guarded:
+      // if registration fails, the game still works normally in the browser.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          try {
+            var p = navigator.serviceWorker.register("/sw.js");
+            if (p && p.catch) p.catch(function () { /* install unavailable */ });
+          } catch (e) { /* install unavailable */ }
+        });
+      }
     </script>
   </body>
 </html>
