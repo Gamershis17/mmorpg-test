@@ -1,0 +1,2479 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>MMORPG test</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Alegreya+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f3ead2;
+        --ink-dim: #c9bd9c;
+        --gold: #c9a227;
+        --gold-bright: #f0c94e;
+        --panel: #122539;
+        --panel-2: #0c1a2b;
+        --panel-edge: #2e4a68;
+        --hp: #d94f3d;
+        --xp: #7d5ba6;
+        --danger: #e2574c;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: "Alegreya Sans", system-ui, sans-serif;
+        color: var(--ink);
+        background: #0a141f;
+        overflow: hidden;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      button, input { font-family: inherit; }
+      button { cursor: pointer; }
+
+      /* ---------- shared panel / button look ---------- */
+      .panel {
+        background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+        border: 2px solid var(--gold);
+        border-radius: 10px;
+        box-shadow: 0 10px 34px rgba(0,0,0,.55), inset 0 0 0 1px rgba(0,0,0,.5);
+      }
+      .btn {
+        min-height: 44px;
+        padding: 10px 22px;
+        border-radius: 8px;
+        border: 2px solid #6d5510;
+        background: linear-gradient(180deg, #8a6d1f, #6d5510);
+        color: #fff7dd;
+        font-weight: 800;
+        font-size: 1rem;
+        letter-spacing: .02em;
+        text-shadow: 0 1px 2px rgba(0,0,0,.6);
+        box-shadow: 0 3px 0 #42330a, 0 6px 14px rgba(0,0,0,.4);
+      }
+      .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #42330a; }
+      .btn.secondary {
+        background: linear-gradient(180deg, #2c4a6b, #1b324e);
+        border-color: #101f31;
+        box-shadow: 0 3px 0 #0a1624, 0 6px 14px rgba(0,0,0,.4);
+        color: #dcebfb;
+      }
+      .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+      .text-input {
+        width: 100%;
+        min-height: 48px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 2px solid var(--panel-edge);
+        background: #0a1725;
+        color: var(--ink);
+        font-size: 1.05rem;
+        font-weight: 600;
+        outline: none;
+      }
+      .text-input:focus { border-color: var(--gold); }
+      .text-input::placeholder { color: #71879c; font-weight: 500; }
+      .field-error { color: #ff9d8f; font-size: .9rem; min-height: 1.2em; margin-top: 6px; font-weight: 600; }
+
+      /* ---------- screens ---------- */
+      .screen {
+        position: fixed; inset: 0;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        overflow-y: auto;
+        padding: 24px 16px 40px;
+        background:
+          radial-gradient(1200px 500px at 50% -10%, rgba(240,201,78,.14), transparent 60%),
+          linear-gradient(180deg, #16283d 0%, #0d1b2a 55%, #081320 100%);
+      }
+      .screen.active { display: flex; }
+      .screen::before {
+        content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .5;
+        background:
+          radial-gradient(340px 130px at 12% 88%, rgba(70,140,70,.25), transparent 70%),
+          radial-gradient(420px 160px at 88% 92%, rgba(70,140,70,.22), transparent 70%),
+          radial-gradient(200px 90px at 78% 10%, rgba(70,140,70,.14), transparent 70%);
+      }
+      .game-title {
+        font-family: Cinzel, serif;
+        font-weight: 800;
+        font-size: clamp(2rem, 6vw, 3.4rem);
+        letter-spacing: .06em;
+        color: var(--gold-bright);
+        text-shadow: 0 2px 0 #6d5510, 0 6px 22px rgba(0,0,0,.7);
+        margin: 18px 0 2px;
+        text-align: center;
+        z-index: 1;
+      }
+      .game-sub {
+        color: var(--ink-dim);
+        font-size: 1rem;
+        margin: 0 0 26px;
+        text-align: center;
+        z-index: 1;
+      }
+      .card { width: min(430px, 100%); padding: 26px 24px 20px; z-index: 1; }
+      .card h2 {
+        font-family: Cinzel, serif; margin: 0 0 4px; font-size: 1.25rem; color: var(--gold-bright);
+        letter-spacing: .04em;
+      }
+      .card p.hint { margin: 0 0 16px; color: var(--ink-dim); font-size: .95rem; line-height: 1.45; }
+      .btn-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+      .divider { display: flex; align-items: center; gap: 12px; color: #71879c; font-size: .85rem; margin: 4px 0; }
+      .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #2e4a68; }
+
+      /* ---------- character select ---------- */
+      .select-wrap { width: min(860px, 100%); z-index: 1; }
+      .account-line { text-align: center; color: var(--ink-dim); margin-bottom: 18px; font-size: .98rem; }
+      .account-line b { color: var(--ink); }
+      .char-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .char-card {
+        padding: 16px;
+        text-align: left;
+        color: var(--ink);
+        display: flex; flex-direction: column; gap: 4px;
+        position: relative;
+      }
+      .char-card .cname { font-family: Cinzel, serif; font-size: 1.2rem; font-weight: 700; color: #fff; padding-right: 34px; }
+      .char-card .cmeta { color: var(--ink-dim); font-size: .92rem; }
+      .char-card .cgold { color: var(--gold-bright); font-weight: 700; font-size: .92rem; }
+      .char-card .enter { margin-top: 10px; }
+      .char-del {
+        position: absolute; top: 8px; right: 8px;
+        width: 36px; height: 36px; min-height: 36px;
+        border-radius: 8px; border: 1px solid #4a2c28;
+        background: #2a1712; color: #ff9d8f; font-size: 1rem; line-height: 1;
+      }
+      .empty-note {
+        border: 2px dashed #2e4a68; border-radius: 10px; padding: 26px 18px;
+        text-align: center; color: var(--ink-dim); margin-bottom: 18px; line-height: 1.5;
+      }
+      .class-badge {
+        display: inline-block; align-self: flex-start;
+        font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+        padding: 3px 9px; border-radius: 20px; border: 1px solid;
+      }
+      .badge-warrior { color: #ffb199; border-color: #a34a32; background: rgba(163,74,50,.18); }
+      .badge-mage { color: #a9ccff; border-color: #3f6db3; background: rgba(63,109,179,.18); }
+      .badge-hunter { color: #b5e39a; border-color: #5d8a3c; background: rgba(93,138,60,.18); }
+
+      /* ---------- create character ---------- */
+      .class-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 6px 0 18px; }
+      @media (max-width: 620px) { .class-grid { grid-template-columns: 1fr; } }
+      .class-card {
+        padding: 16px 14px; text-align: left; color: var(--ink);
+        display: flex; flex-direction: column; gap: 6px;
+        border: 2px solid var(--panel-edge);
+        background: linear-gradient(180deg, #16293f, #0e1e30);
+        border-radius: 10px;
+        min-height: 44px;
+      }
+      .class-card[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 8px 22px rgba(0,0,0,.5); }
+      .class-card h3 { font-family: Cinzel, serif; margin: 0; font-size: 1.12rem; }
+      .class-card p { margin: 0; color: var(--ink-dim); font-size: .9rem; line-height: 1.45; }
+      .class-card .stats { font-size: .85rem; color: var(--ink); font-weight: 700; }
+      .class-art { font-size: 1.7rem; line-height: 1; }
+      .create-wrap { width: min(760px, 100%); z-index: 1; }
+      .create-wrap .panel { padding: 24px; }
+      .create-wrap label { display: block; font-weight: 800; margin: 0 0 8px; color: var(--gold-bright); font-family: Cinzel, serif; letter-spacing: .03em; }
+      .row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+      /* ---------- game ---------- */
+      #screen-game { position: fixed; inset: 0; display: none; background: #20391c; }
+      #screen-game.active { display: block; }
+      #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+      .hud { position: absolute; pointer-events: none; z-index: 5; }
+      .hud > * { pointer-events: auto; }
+
+      #hud-player { top: max(10px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); width: min(320px, 62vw); }
+      .portrait-row { display: flex; gap: 10px; align-items: stretch; }
+      .portrait {
+        width: 58px; height: 58px; flex: 0 0 58px; border-radius: 50%;
+        border: 2px solid var(--gold); background: #0c1a2b;
+        display: flex; align-items: center; justify-content: center; font-size: 1.65rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,.5);
+      }
+      .bars { flex: 1; padding: 8px 10px 9px; border-radius: 10px; background: rgba(12,26,43,.88); border: 2px solid rgba(201,162,39,.75); box-shadow: 0 4px 14px rgba(0,0,0,.45); }
+      .bars .pname { font-weight: 800; font-size: .98rem; color: #fff; display: flex; justify-content: space-between; gap: 8px; }
+      .bars .pname .lvl { color: var(--gold-bright); font-size: .85rem; white-space: nowrap; }
+      .bar { height: 13px; border-radius: 6px; background: #060d16; border: 1px solid rgba(0,0,0,.8); overflow: hidden; margin-top: 5px; position: relative; }
+      .bar > i { display: block; height: 100%; width: 100%; transition: width .18s ease; }
+      .bar.hp > i { background: linear-gradient(180deg, #f0765f, #c23a28); }
+      .bar.res > i { background: linear-gradient(180deg, #6fb1e8, #2f6fb3); }
+      .bar.res.rage > i { background: linear-gradient(180deg, #e8a04c, #b36a1e); }
+      .bar.res.focus > i { background: linear-gradient(180deg, #a8d97a, #5d8a3c); }
+      .bar.xp { height: 7px; }
+      .bar.xp > i { background: linear-gradient(180deg, #b18fe0, #7d5ba6); }
+      .bar .bar-text {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-size: .68rem; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000;
+      }
+      .gold-line { margin-top: 6px; font-weight: 800; color: var(--gold-bright); font-size: .92rem; display: flex; align-items: center; gap: 6px; }
+      .coin { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe98a, #c9a227 70%); border: 1px solid #6d5510; display: inline-block; flex: 0 0 14px; }
+      #pet-bar { margin-top: 8px; display: none; align-items: center; gap: 8px; background: rgba(12,26,43,.88); border: 2px solid rgba(201,162,39,.55); border-radius: 10px; padding: 6px 10px; }
+      #pet-bar.show { display: flex; }
+      #pet-bar .pet-name { font-weight: 800; font-size: .88rem; color: #b5e39a; white-space: nowrap; }
+      #pet-bar .bar { flex: 1; margin-top: 0; }
+      #pet-bar .bar > i { background: linear-gradient(180deg, #8fce62, #4c7a2e); }
+
+      #hud-map { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); text-align: center; }
+      #minimap { border: 2px solid var(--gold); border-radius: 10px; background: #1c3520; box-shadow: 0 4px 14px rgba(0,0,0,.5); display: block; }
+      .zone-name { font-family: Cinzel, serif; font-weight: 700; color: #fff; text-shadow: 0 2px 4px #000, 0 0 12px rgba(0,0,0,.6); margin-top: 5px; font-size: 1rem; }
+      .zone-sub { font-size: .8rem; font-weight: 800; color: #9fe08a; text-shadow: 0 1px 3px #000; min-height: 1em; }
+      .zone-sub.wild { color: #ffb199; }
+
+      #quest-tracker {
+        top: calc(max(10px, env(safe-area-inset-top)) + 178px);
+        right: max(10px, env(safe-area-inset-right));
+        width: 196px; padding: 10px 12px; font-size: .88rem;
+        background: rgba(12,26,43,.88); border: 2px solid rgba(201,162,39,.55); border-radius: 10px;
+        box-shadow: 0 4px 14px rgba(0,0,0,.45);
+      }
+      #quest-tracker h4 { margin: 0 0 3px; font-family: Cinzel, serif; font-size: .86rem; color: var(--gold-bright); }
+      #quest-tracker p { margin: 0; color: var(--ink-dim); line-height: 1.4; }
+      #quest-tracker .qprog { color: #fff; font-weight: 800; }
+      @media (max-width: 700px) { #quest-tracker { display: none; } }
+
+      #hud-actions { right: max(12px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+      .round-btn {
+        min-width: 64px; min-height: 56px; padding: 8px 14px;
+        border-radius: 12px; border: 2px solid rgba(201,162,39,.8);
+        background: rgba(12,26,43,.92); color: var(--ink); font-weight: 800; font-size: .92rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,.5);
+      }
+      .round-btn.on { background: #4c7a2e; border-color: #b5e39a; color: #fff; }
+      #btn-talk { display: none; background: linear-gradient(180deg, #8a6d1f, #6d5510); color: #fff7dd; font-size: 1rem; }
+      #btn-talk.show { display: block; }
+
+      #joystick { left: max(16px, env(safe-area-inset-left)); bottom: max(18px, env(safe-area-inset-bottom)); width: 124px; height: 124px; }
+      #joy-base {
+        position: absolute; inset: 0; border-radius: 50%;
+        background: rgba(12,26,43,.45); border: 2px solid rgba(255,255,255,.35);
+        touch-action: none; pointer-events: auto;
+      }
+      #joy-knob {
+        position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; border-radius: 50%;
+        background: rgba(240,201,78,.75); border: 2px solid rgba(0,0,0,.35);
+        transform: translate(-50%, -50%); pointer-events: none;
+      }
+      @media (pointer: fine) { #joystick { opacity: .55; } }
+
+      #toast-zone {
+        left: 50%; bottom: 118px; transform: translateX(-50%);
+        display: flex; flex-direction: column; align-items: center; gap: 6px; width: max-content; max-width: 92vw;
+      }
+      .toast {
+        background: rgba(12,26,43,.92); border: 1px solid var(--gold); color: var(--ink);
+        padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: .92rem;
+        box-shadow: 0 4px 14px rgba(0,0,0,.5); text-align: center;
+        animation: toast-in .25s ease;
+      }
+      @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+      #rotate-hint {
+        top: calc(max(10px, env(safe-area-inset-top)) + 158px); left: 50%; transform: translateX(-50%);
+        background: rgba(12,26,43,.92); border: 1px solid var(--gold); border-radius: 20px;
+        padding: 8px 16px; font-weight: 700; font-size: .88rem; display: none;
+        max-width: calc(100vw - 24px); text-align: center;
+      }
+      @media (orientation: portrait) and (max-width: 700px) { #rotate-hint { display: block; } }
+
+      /* ---------- dialog / death overlays ---------- */
+      .overlay {
+        position: absolute; inset: 0; z-index: 20; display: none;
+        align-items: center; justify-content: center; padding: 18px;
+        background: rgba(4,10,18,.55);
+      }
+      .overlay.show { display: flex; }
+      .overlay .panel { width: min(460px, 100%); padding: 22px; }
+      .overlay h3 { font-family: Cinzel, serif; margin: 0 0 4px; color: var(--gold-bright); font-size: 1.2rem; }
+      .overlay .who { color: var(--ink-dim); font-size: .88rem; font-weight: 700; margin-bottom: 10px; }
+      .overlay p { line-height: 1.55; margin: 0 0 12px; }
+      .overlay .reward { color: var(--gold-bright); font-weight: 800; }
+      .overlay .btn-stack { flex-direction: row; flex-wrap: wrap; }
+      .overlay .btn-stack .btn { flex: 1; }
+
+      .top-links { margin-top: 20px; display: flex; gap: 10px; z-index: 1; flex-wrap: wrap; justify-content: center; }
+      .link-btn {
+        min-height: 40px; padding: 8px 16px; border-radius: 8px;
+        background: transparent; border: 1px solid #2e4a68; color: var(--ink-dim); font-weight: 700;
+      }
+
+      /* ---------- GM console ---------- */
+      #btn-gm { border-color: #f0c94e; color: var(--gold-bright); }
+      .gm-panel { width: min(600px, 100%); max-height: 88vh; overflow-y: auto; padding: 20px; }
+      .gm-panel h3 { display: flex; align-items: center; gap: 10px; }
+      .gm-badge {
+        font-size: .72rem; font-family: "Alegreya Sans", sans-serif; font-weight: 800; letter-spacing: .08em;
+        background: var(--gold); color: #241a02; border-radius: 6px; padding: 3px 8px;
+      }
+      .gm-panel h4 {
+        font-family: Cinzel, serif; color: var(--gold-bright); font-size: .95rem;
+        margin: 18px 0 8px; letter-spacing: .03em;
+      }
+      .gm-panel h4:first-of-type { margin-top: 6px; }
+      .gm-note { color: var(--ink-dim); font-size: .86rem; margin: 2px 0 0; line-height: 1.45; }
+      .gm-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 18px; font-size: .93rem; color: var(--ink-dim); }
+      .gm-stats b { color: #fff; float: right; }
+      @media (max-width: 520px) { .gm-stats { grid-template-columns: 1fr; } }
+      .gm-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+      .gm-btn {
+        min-height: 40px; padding: 8px 13px; border-radius: 8px;
+        border: 1px solid #2e4a68; background: #1b324e; color: var(--ink);
+        font-weight: 700; font-size: .88rem;
+      }
+      .gm-btn:active { transform: translateY(1px); }
+      .gm-btn.gold-btn { border-color: #6d5510; background: #4a3a10; color: #ffe98a; }
+      .gm-btn.boss-btn { border-color: #7a2e22; background: #47201a; color: #ffb199; }
+      .gm-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .gm-input {
+        width: 140px; min-height: 40px; padding: 8px 10px; border-radius: 8px;
+        border: 2px solid var(--panel-edge); background: #0a1725; color: var(--ink);
+        font-size: .95rem; font-weight: 700;
+      }
+      .inv-row {
+        display: flex; justify-content: space-between; align-items: center; gap: 10px;
+        padding: 7px 0; border-bottom: 1px solid rgba(46,74,104,.45); font-size: .93rem;
+      }
+      .inv-row .inv-name { font-weight: 700; color: #fff; }
+      .inv-row .inv-desc { color: var(--ink-dim); font-size: .84rem; }
+      .inv-row .gm-btn { flex: 0 0 auto; }
+      .equipped-tag { color: #8fce62; font-weight: 800; font-size: .8rem; }
+      #gm-log { margin: 6px 0 0; padding-left: 18px; color: var(--ink-dim); font-size: .87rem; line-height: 1.5; }
+      #gm-log li b { color: var(--gold-bright); }
+    </style>
+  </head>
+  <body>
+
+    <!-- ============ LOGIN ============ -->
+    <section id="screen-login" class="screen active">
+      <h1 class="game-title">MMORPG TEST</h1>
+      <p class="game-sub">Dawnhollow Vale — Slice 2 · Multiplayer</p>
+      <div class="card panel">
+        <h2>Log In</h2>
+        <p class="hint">Log in with your account — your characters are saved on the server. New here? Create an account below. If no server is around, the game still plays offline (local mode, saved on this device).</p>
+        <label for="login-name" style="font-weight:800; display:block; margin-bottom:8px;">Account name</label>
+        <input id="login-name" class="text-input" type="text" maxlength="20" autocomplete="off" placeholder="e.g. Cody" />
+        <label for="login-password" style="font-weight:800; display:block; margin:12px 0 8px;">Password</label>
+        <input id="login-password" class="text-input" type="password" maxlength="64" autocomplete="current-password" placeholder="Your account password" />
+        <div id="login-error" class="field-error"></div>
+        <div class="btn-stack">
+          <button id="btn-login" class="btn" type="button">Log In</button>
+          <button id="btn-register" class="btn secondary" type="button">Create Account</button>
+          <div class="divider">or</div>
+          <button id="btn-guest" class="btn secondary" type="button">Play as Guest</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CHARACTER SELECT ============ -->
+    <section id="screen-select" class="screen">
+      <h1 class="game-title">MMORPG TEST</h1>
+      <p class="game-sub">Select your character</p>
+      <div class="select-wrap">
+        <p class="account-line">Account: <b id="account-name"></b></p>
+        <div id="char-list"></div>
+        <div class="row-between">
+          <button id="btn-new-char" class="btn" type="button">+ Create New Character</button>
+          <button id="btn-logout" class="link-btn" type="button">Log Out</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CREATE CHARACTER ============ -->
+    <section id="screen-create" class="screen">
+      <h1 class="game-title">MMORPG TEST</h1>
+      <p class="game-sub">Create your character</p>
+      <div class="create-wrap">
+        <div class="panel">
+          <label>1 · Choose your class</label>
+          <div class="class-grid" id="class-grid">
+            <button class="class-card" type="button" data-class="warrior" aria-pressed="false">
+              <span class="class-art">🗡️</span>
+              <h3>Warrior</h3>
+              <p>Melee fighter with a sword and shield. Highest health, fights up close.</p>
+              <span class="stats">HP 150 · Damage 13 · Melee</span>
+            </button>
+            <button class="class-card" type="button" data-class="mage" aria-pressed="false">
+              <span class="class-art">🔮</span>
+              <h3>Mage</h3>
+              <p>Casts firebolts from range. Lower health, biggest hits.</p>
+              <span class="stats">HP 95 · Damage 19 · Ranged</span>
+            </button>
+            <button class="class-card" type="button" data-class="hunter" aria-pressed="true">
+              <span class="class-art">🏹</span>
+              <h3>Hunter</h3>
+              <p>Bow and a loyal wolf — <b>Fang</b> fights beside you. The only class with a pet.</p>
+              <span class="stats">HP 115 · Damage 12 · Ranged + Pet</span>
+            </button>
+          </div>
+          <label for="char-name">2 · Name your character</label>
+          <input id="char-name" class="text-input" type="text" maxlength="16" autocomplete="off" placeholder="2–16 characters" />
+          <p class="hint" style="margin:8px 0 0; color:var(--ink-dim); font-size:.9rem;">This name shows above your character in the world.</p>
+          <div id="create-error" class="field-error"></div>
+          <div class="btn-stack" style="flex-direction:row; flex-wrap:wrap;">
+            <button id="btn-create" class="btn" type="button" style="flex:1;">Create Character</button>
+            <button id="btn-create-back" class="btn secondary" type="button">Back</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ GAME ============ -->
+    <section id="screen-game">
+      <canvas id="game-canvas"></canvas>
+
+      <div class="hud" id="hud-player">
+        <div class="portrait-row">
+          <div class="portrait" id="hud-portrait">🏹</div>
+          <div class="bars">
+            <div class="pname"><span id="hud-name">Hero</span><span class="lvl" id="hud-level">Level 1</span></div>
+            <div class="bar hp"><i id="bar-hp"></i><span class="bar-text" id="bar-hp-text"></span></div>
+            <div class="bar res" id="bar-res-wrap"><i id="bar-res"></i><span class="bar-text" id="bar-res-text"></span></div>
+            <div class="bar xp"><i id="bar-xp"></i></div>
+            <div class="gold-line"><span class="coin"></span><span id="hud-gold">Gold 0</span></div>
+          </div>
+        </div>
+        <div id="pet-bar">
+          <span class="pet-name" id="pet-name">🐺 Fang</span>
+          <div class="bar"><i id="bar-pet"></i></div>
+        </div>
+      </div>
+
+      <div class="hud" id="hud-map">
+        <canvas id="minimap" width="168" height="118"></canvas>
+        <div class="zone-name">Dawnhollow Vale</div>
+        <div class="zone-sub" id="zone-sub">Village · Safe Zone</div>
+      </div>
+
+      <div class="hud" id="quest-tracker">
+        <h4 id="qt-title">No active quest</h4>
+        <p id="qt-body">Speak with <b>Steward Halden</b> by the well in the village.</p>
+      </div>
+
+      <div class="hud" id="hud-actions">
+        <button id="btn-talk" class="round-btn" type="button">Talk to Halden</button>
+          <button id="btn-shop" class="round-btn" type="button">Shop</button>
+          <button id="btn-armory" class="round-btn" type="button">Armory</button>
+          <button id="btn-chat" class="round-btn" type="button">Chat</button>
+        <button id="btn-gm" class="round-btn" type="button">GM Console</button>
+        <button id="btn-idle" class="round-btn" type="button">Idle Hunt: Off</button>
+        <button id="btn-chars" class="round-btn" type="button">Characters</button>
+      </div>
+
+      <div class="hud" id="joystick">
+        <div id="joy-base"><div id="joy-knob"></div></div>
+      </div>
+
+      <div class="hud" id="toast-zone"></div>
+      <div class="hud" id="chat-panel">
+        <div id="chat-log"></div>
+        <div id="chat-row" style="display:none;">
+          <input id="chat-input" type="text" maxlength="200" autocomplete="off" placeholder="Say something to the Vale…" />
+          <button id="chat-send" type="button">Send</button>
+        </div>
+      </div>
+      <div class="hud" id="rotate-hint">📱 Rotate your phone — the Vale plays in landscape</div>
+
+      <div class="overlay" id="dialog-overlay">
+        <div class="panel">
+          <h3 id="dlg-title">Thin the Wilds</h3>
+          <div class="who">Steward Halden · Village Steward</div>
+          <p id="dlg-text"></p>
+          <p class="reward" id="dlg-reward"></p>
+          <div class="btn-stack">
+            <button id="dlg-primary" class="btn" type="button">Accept Quest</button>
+            <button id="dlg-close" class="btn secondary" type="button">Close</button>
+          </div>
+        </div>
+      </div>
+
+    <div class="overlay" id="shop-overlay">
+      <div class="panel gm-panel">
+        <h3 id="shop-title">General Shop</h3>
+        <p class="gm-note" id="shop-sub">Shopkeeper Bram · Potions and supplies.</p>
+        <h4>For sale</h4>
+        <div id="shop-catalog"></div>
+        <h4 id="shop-equipped-title" style="display:none;">Equipped</h4>
+        <div id="shop-equipped" style="display:none;"></div>
+        <h4>Your inventory — sell</h4>
+        <div id="shop-inventory"></div>
+        <p class="gm-note">Your gold: <b id="shop-gold" style="color:var(--gold-bright);"></b></p>
+        <div class="btn-stack" style="margin-top:14px;">
+          <button id="shop-close" class="btn secondary" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
+      <div class="overlay" id="gm-overlay">
+        <div class="panel gm-panel">
+          <h3>Game Master Console <span class="gm-badge">GM</span></h3>
+          <p class="gm-note" id="gm-mode-note">Online: pick a player below to inspect them or give them things. Offline (local mode): the console works on your own character only.</p>
+        <h4>Target Player <span style="color:var(--gold-bright);font-size:.8rem;">(online only)</span></h4>
+        <div class="gm-row">
+          <select id="gm-target" class="gm-input" style="width:200px;"></select>
+          <button id="gm-inspect" class="gm-btn" type="button">Inspect</button>
+          <button id="gm-refresh-players" class="gm-btn" type="button">Refresh</button>
+        </div>
+        <div id="gm-inspect-result"></div>
+
+          <h4>Character</h4>
+          <div class="gm-stats" id="gm-stats"></div>
+
+          <h4>Give Gold</h4>
+          <div class="gm-row">
+            <input id="gm-gold-input" class="gm-input" type="number" min="1" placeholder="Amount" />
+            <button id="gm-give-gold" class="gm-btn gold-btn" type="button">Give Gold</button>
+            <button class="gm-btn gold-btn" type="button" data-gm="gold" data-amt="10000">+10,000</button>
+            <button class="gm-btn gold-btn" type="button" data-gm="gold" data-amt="1000000">+1,000,000</button>
+          </div>
+
+          <h4>Give OP Gear</h4>
+          <div class="gm-grid">
+            <button class="gm-btn" type="button" data-gm="gear-set">⚔️ Full OP Set (gives + equips)</button>
+            <button class="gm-btn" type="button" data-gm="gear" data-id="op_blade">🗡️ Martin Fury, GM Blade</button>
+            <button class="gm-btn" type="button" data-gm="gear" data-id="op_staff">🔮 Staff of Infinite Stars</button>
+            <button class="gm-btn" type="button" data-gm="gear" data-id="op_bow">🏹 Bow of the Vale God</button>
+            <button class="gm-btn" type="button" data-gm="gear" data-id="op_helm">👑 Crown of Dawnhollow</button>
+            <button class="gm-btn" type="button" data-gm="gear" data-id="op_chest">🛡️ Dragonscale Chestplate</button>
+            <button class="gm-btn" type="button" data-gm="gear" data-id="op_boots">🥾 Boots of the Wind</button>
+          </div>
+
+          <h4>Give Items</h4>
+          <div class="gm-grid">
+            <button class="gm-btn" type="button" data-gm="item" data-id="potion" data-qty="5">🧪 Healing Potion ×5</button>
+            <button class="gm-btn" type="button" data-gm="item" data-id="gpotion" data-qty="5">⚗️ Greater Healing Potion ×5</button>
+          </div>
+
+          <h4>Set Level <span style="font-family:'Alegreya Sans',sans-serif; font-size:.8rem; color:var(--ink-dim);">(player cap: 60 — GM can go past it)</span></h4>
+          <div class="gm-row">
+            <input id="gm-level-input" class="gm-input" type="number" min="1" max="999" placeholder="Level" />
+            <button id="gm-set-level" class="gm-btn" type="button">Set Level</button>
+            <button class="gm-btn" type="button" data-gm="level" data-lvl="60">Level 60</button>
+          </div>
+
+          <h4>Summon Enemies</h4>
+          <div class="gm-grid">
+            <button class="gm-btn" type="button" data-gm="summon" data-summon="wolfpack">🐺 Wolf Pack ×3</button>
+            <button class="gm-btn" type="button" data-gm="summon" data-summon="boar">🐗 Wild Boar</button>
+            <button class="gm-btn" type="button" data-gm="summon" data-summon="slime">🟢 Thorn Slime</button>
+            <button class="gm-btn boss-btn" type="button" data-gm="summon" data-summon="elite-wolf">⭐ Elite Vale Alpha</button>
+            <button class="gm-btn boss-btn" type="button" data-gm="summon" data-summon="elite-boar">⭐ Elite Thornback Brute</button>
+          </div>
+
+          <h4>Summon Bosses</h4>
+          <div class="gm-grid">
+            <button class="gm-btn boss-btn" type="button" data-gm="summon" data-summon="dungeon">💀 Gorefang · Dungeon Boss</button>
+            <button class="gm-btn boss-btn" type="button" data-gm="summon" data-summon="raid">👹 Thornmaw the Ancient · Raid Boss</button>
+          </div>
+
+          <h4>Summon Friendly NPCs</h4>
+          <div class="gm-grid">
+            <button class="gm-btn" type="button" data-gm="friend" data-friend="guard">🛡️ Guard Companion</button>
+            <button class="gm-btn" type="button" data-gm="friend" data-friend="healer">💚 Wandering Healer</button>
+            <button class="gm-btn" type="button" data-gm="friend" data-friend="merchant">🧳 Traveling Merchant</button>
+          </div>
+
+          <h4>Inventory</h4>
+          <div id="gm-inventory"></div>
+
+          <h4>GM Log</h4>
+          <ul id="gm-log"><li>Console opened.</li></ul>
+
+          <div class="btn-stack" style="margin-top:18px;">
+            <button id="gm-close" class="btn secondary" type="button">Close Console</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" id="death-overlay">
+        <div class="panel" style="text-align:center;">
+          <h3>You Have Fallen</h3>
+          <p>The wilds of Dawnhollow Vale got the better of you this time. The village guards carry you back to the well.</p>
+          <div class="btn-stack" style="justify-content:center;">
+            <button id="btn-respawn" class="btn" type="button">Return to the Village</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      "use strict";
+      /* =====================================================================
+         MMORPG TEST — Slice 1: Dawnhollow Vale
+         One zone · safe-zone village · guard NPCs · Warrior / Mage / Hunter
+         (Hunter pet: Fang) · idle auto-combat · one quest from Steward Halden.
+         Accounts & characters live in memory for this session (slice 1 is
+         device-local by design; the server move is slice 2).
+      ===================================================================== */
+
+      /* ---------------- data ---------------- */
+      var CLASSES = {
+        warrior: { label: "Warrior", icon: "🗡️", hp: 150, dmg: 13, range: 52, atkRate: 0.85, speed: 178, resName: "Rage", resClass: "rage", resMax: 100 },
+        mage:    { label: "Mage",    icon: "🔮", hp: 95,  dmg: 19, range: 185, atkRate: 1.15, speed: 168, resName: "Mana", resClass: "", resMax: 100 },
+        hunter:  { label: "Hunter",  icon: "🏹", hp: 115, dmg: 12, range: 175, atkRate: 0.95, speed: 176, resName: "Focus", resClass: "focus", resMax: 100 }
+      };
+      var ENEMY_TYPES = [
+        { kind: "wolf",  name: "Vale Wolf",   hp: 42, dmg: 5, speed: 100, xp: 14, goldMin: 5, goldMax: 9,  aggro: 190 },
+        { kind: "boar",  name: "Wild Boar",   hp: 62, dmg: 7, speed: 82,  xp: 19, goldMin: 6, goldMax: 12, aggro: 165 },
+        { kind: "slime", name: "Thorn Slime", hp: 30, dmg: 4, speed: 58,  xp: 11, goldMin: 3, goldMax: 7,  aggro: 150 }
+      ];
+      var WORLD = { w: 2600, h: 1800 };
+      var VILLAGE = { x: 640, y: 900, r: 355 };
+      var QUEST_NEED = 5;
+      var LEVEL_CAP = 60;
+      var GEAR = {
+        op_blade: { name: "Martin Fury, GM Blade", icon: "🗡️", slot: "weapon", dmg: 250, desc: "+250 Damage" },
+        op_staff: { name: "Staff of Infinite Stars", icon: "🔮", slot: "weapon", dmg: 250, desc: "+250 Damage" },
+        op_bow:   { name: "Bow of the Vale God", icon: "🏹", slot: "weapon", dmg: 250, desc: "+250 Damage" },
+        op_helm:  { name: "Crown of Dawnhollow", icon: "👑", slot: "helm", hp: 500, desc: "+500 Health" },
+        op_chest: { name: "Dragonscale Chestplate", icon: "🛡️", slot: "chest", hp: 800, desc: "+800 Health" },
+        op_boots: { name: "Boots of the Wind", icon: "🥾", slot: "boots", speed: 70, desc: "+70 Speed" },
+        // ---- Armory stock (sold by Armorer Durn; same prices as the server) ----
+        iron_sword:      { name: "Iron Sword", icon: "🗡️", slot: "weapon", dmg: 8, price: 120, desc: "+8 Damage" },
+        apprentice_staff:{ name: "Apprentice Staff", icon: "🔮", slot: "weapon", dmg: 8, price: 120, desc: "+8 Damage" },
+        hunting_bow:     { name: "Hunting Bow", icon: "🏹", slot: "weapon", dmg: 8, price: 120, desc: "+8 Damage" },
+        leather_helm:    { name: "Leather Helm", icon: "🪖", slot: "helm", hp: 40, price: 80, desc: "+40 Health" },
+        chainmail_vest:  { name: "Chainmail Vest", icon: "🛡️", slot: "chest", hp: 120, price: 200, desc: "+120 Health" },
+        swift_boots:     { name: "Swift Boots", icon: "🥾", slot: "boots", speed: 15, price: 90, desc: "+15 Speed" }
+      };
+      var ITEMS = {
+        bandage: { name: "Bandage", icon: "🩹", healPct: 0.25, price: 10, desc: "Restores 25% health" },
+        potion:  { name: "Healing Potion", icon: "🧪", healPct: 0.5, price: 25, desc: "Restores 50% health" },
+        gpotion: { name: "Greater Healing Potion", icon: "⚗️", healPct: 1.0, price: 60, desc: "Restores 100% health" }
+      };
+
+      /* ---------------- session state ---------------- */
+      var account = null;          // { name, guest }
+      var characters = [];         // { name, cls, level, xp, gold, quest:{state,kills} }
+      var selectedClass = "hunter";
+
+      /* =====================================================================
+         MULTIPLAYER (slice 2) — WebSocket client + server accounts.
+         If the server can't be reached, the game runs exactly like slice 1
+         (local mode): local accounts, local enemies, local combat, local shops.
+         ===================================================================== */
+      var MP = {
+        online: false,          // true once the WS world join succeeds
+        serverAvailable: false, // /api/health answered
+        ws: null, token: null, isGM: false,
+        players: [],            // other players from snapshots
+        selfId: null,           // our server-side player id (snapshots)
+        lastPosSent: 0, lastSelfHp: null,
+        shopKind: null,         // 'shop' | 'armory' | null
+        catalog: null           // shop catalog from the server (welcome)
+      };
+      var SHOPKEEPER = { x: VILLAGE.x + 95, y: VILLAGE.y + 40, name: "Shopkeeper Bram" };
+      var ARMORY = { x: 880, y: 830, w: 130, h: 100 };
+      var ARMORER = { x: 945, y: 955, name: "Armorer Durn" };
+      function nearShop() { return G && dist(G.player.x, G.player.y, SHOPKEEPER.x, SHOPKEEPER.y) < 105; }
+      function nearArmory() { return G && dist(G.player.x, G.player.y, ARMORER.x, ARMORER.y) < 105; }
+
+      /* ----- server detection + HTTP API ----- */
+      function apiPost(path, body, token) {
+        var headers = { "Content-Type": "application/json" };
+        if (token) headers["x-token"] = token;
+        return fetch(path, { method: "POST", headers: headers, body: JSON.stringify(body || {}) })
+          .then(function (r) { return r.json(); })
+          .catch(function () { return { ok: false, error: "Server unreachable." }; });
+      }
+      function apiGet(path, token) {
+        var headers = {};
+        if (token) headers["x-token"] = token;
+        return fetch(path, { headers: headers })
+          .then(function (r) { return r.json(); })
+          .catch(function () { return { ok: false, error: "Server unreachable." }; });
+      }
+      function mpCheckServer() {
+        return fetch("/api/health").then(function (r) { return r.json(); })
+          .then(function (d) { MP.serverAvailable = !!(d && d.ok); return MP.serverAvailable; })
+          .catch(function () { MP.serverAvailable = false; return false; });
+      }
+
+      /* ----- server accounts ----- */
+      function mpSetAccount(name, guest, isGM) {
+        account = { name: name, guest: !!guest, isGM: !!isGM };
+        $("account-name").textContent = name + (guest ? " (Guest)" : "") + (isGM ? " · GM" : "");
+      }
+      function sanitizeCharClient(c) {
+        var d = (c && typeof c === "object") ? c : {};
+        return {
+          name: String(d.name || "Hero").slice(0, 16),
+          cls: CLASSES[d.cls] ? d.cls : "hunter",
+          level: Math.max(1, Math.floor(d.level) || 1),
+          xp: Math.max(0, Math.floor(d.xp) || 0),
+          gold: Math.max(0, Math.floor(d.gold) || 0),
+          kills: Math.max(0, Math.floor(d.kills) || 0),
+          items: Array.isArray(d.items) ? d.items : [],
+          gear: (d.gear && typeof d.gear === "object")
+            ? { weapon: d.gear.weapon || null, helm: d.gear.helm || null, chest: d.gear.chest || null, boots: d.gear.boots || null }
+            : { weapon: null, helm: null, chest: null, boots: null },
+          quest: (d.quest && typeof d.quest === "object")
+            ? { state: d.quest.state || "none", kills: d.quest.kills || 0 }
+            : { state: "none", kills: 0 }
+        };
+      }
+      function mpRefreshCharacters() {
+        if (!MP.token) { renderCharList(); showScreen("screen-select"); return; }
+        apiGet("/api/characters", MP.token).then(function (d) {
+          if (d.ok && Array.isArray(d.characters)) characters = d.characters.map(sanitizeCharClient);
+          else characters = [];
+          renderCharList();
+          showScreen("screen-select");
+        });
+      }
+      function mpDoLogin() {
+        var name = $("login-name").value.trim();
+        var pw = $("login-password").value;
+        if (name.length < 2) { $("login-error").textContent = "Enter an account name (at least 2 characters)."; return; }
+        $("login-error").textContent = "";
+        mpCheckServer().then(function (ok) {
+          if (!ok) { doLogin(name, false); return; }
+          apiPost("/api/login", { name: name, password: pw }).then(function (d) {
+            if (!d.ok) { $("login-error").textContent = d.error || "Login failed."; return; }
+            MP.token = d.token; MP.isGM = !!d.account.isGM;
+            mpSetAccount(d.account.name, false, d.account.isGM);
+            mpRefreshCharacters();
+          });
+        });
+      }
+      function mpDoRegister() {
+        var name = $("login-name").value.trim();
+        var pw = $("login-password").value;
+        if (name.length < 2) { $("login-error").textContent = "Enter an account name (at least 2 characters)."; return; }
+        if (pw.length < 3) { $("login-error").textContent = "Pick a password (at least 3 characters)."; return; }
+        $("login-error").textContent = "";
+        mpCheckServer().then(function (ok) {
+          if (!ok) { $("login-error").textContent = "No server found — accounts need the server. Play as Guest for local mode."; return; }
+          apiPost("/api/register", { name: name, password: pw }).then(function (d) {
+            if (!d.ok) { $("login-error").textContent = d.error || "Could not create the account."; return; }
+            MP.token = d.token; MP.isGM = !!d.account.isGM;
+            mpSetAccount(d.account.name, false, d.account.isGM);
+            mpRefreshCharacters();
+            toast("Account created — welcome to Dawnhollow Vale, " + d.account.name + ".");
+          });
+        });
+      }
+      function mpDoGuest() {
+        mpCheckServer().then(function (ok) {
+          if (!ok) { doLogin("Guest", true); return; }
+          apiPost("/api/guest", {}).then(function (d) {
+            if (!d.ok) { doLogin("Guest", true); return; }
+            MP.token = d.token; MP.isGM = false;
+            mpSetAccount(d.account.name, true, false);
+            mpRefreshCharacters();
+          });
+        });
+      }
+      function mpDeleteCharacter(name) {
+        if (!MP.token || !MP.serverAvailable) return false;
+        fetch("/api/characters/" + encodeURIComponent(name), { method: "DELETE", headers: { "x-token": MP.token } })
+          .then(function (r) { return r.json(); }).catch(function () { return { ok: false }; })
+          .then(function () { mpRefreshCharacters(); });
+        return true;
+      }
+
+      /* ----- WebSocket world ----- */
+      function mpSend(obj) {
+        try { if (MP.ws && MP.ws.readyState === 1) MP.ws.send(JSON.stringify(obj)); } catch (e) {}
+      }
+      function mpJoinWorld(ch) {
+        mpDisconnect();
+        MP.online = false; MP.players = []; MP.selfId = null;
+        if (!MP.token) return; // local mode — no account, no server
+        mpCheckServer().then(function (ok) {
+          if (!ok) { toast("No server found — playing locally."); return; }
+          mpConnect(ch.name);
+        });
+      }
+      function mpConnect(charName) {
+        var proto = location.protocol === "https:" ? "wss:" : "ws:";
+        var ws;
+        try { ws = new WebSocket(proto + "//" + location.host + "/"); }
+        catch (e) { toast("Could not reach the server — playing locally."); return; }
+        MP.ws = ws;
+        var opened = false;
+        ws.onopen = function () { opened = true; ws.send(JSON.stringify({ t: "join", token: MP.token, char: charName })); };
+        ws.onmessage = function (ev) { var m = null; try { m = JSON.parse(ev.data); } catch (e) { return; } mpHandle(m); };
+        ws.onclose = function () {
+          if (MP.online) { MP.online = false; toast("Disconnected from the server — playing locally now."); }
+          MP.ws = null;
+        };
+        ws.onerror = function () { if (!opened) toast("Could not reach the server — playing locally."); };
+      }
+      function mpDisconnect() {
+        if (MP.ws) { try { MP.ws.close(); } catch (e) {} MP.ws = null; }
+        MP.online = false; MP.players = []; MP.selfId = null;
+      }
+      function mpSendPos() {
+        if (!MP.online || !MP.ws || !G) return;
+        var now = Date.now();
+        if (now - MP.lastPosSent < 100) return;
+        MP.lastPosSent = now;
+        mpSend({ t: "pos", x: Math.round(G.player.x), y: Math.round(G.player.y), face: G.player.face, moving: G.player.moving, pet: G.pet ? { x: Math.round(G.pet.x), y: Math.round(G.pet.y) } : null });
+      }
+      function mpAttack(target, from) {
+        if (!MP.online || !target) return;
+        mpSend({ t: "atk", id: target.id, from: from || "player" });
+      }
+      function mpHandle(m) {
+        if (!m || !m.t) return;
+        if (m.t === "welcome") {
+          MP.online = true; MP.selfId = m.you && m.you.id;
+          if (m.catalog) MP.catalog = m.catalog;
+          toast("Connected — you can see other players now.");
+          return;
+        }
+        if (m.t === "error") { toast(m.message || "Server error."); return; }
+        if (!G) return; // messages before entering the world are ignored
+        if (m.t === "snap") {
+          MP.players = (m.players || []).filter(function (pl) { return pl.id !== MP.selfId; });
+          var flashById = {};
+          G.enemies.forEach(function (e) { if (e.id) flashById[e.id] = e.flash || 0; });
+          G.enemies = (m.enemies || []).map(function (se) {
+            return { id: se.id, kind: se.kind, name: se.name, x: se.x, y: se.y,
+              r: (se.kind === "slime" ? 15 : 16) * (se.scale || 1),
+              hp: se.hp, maxHp: se.maxHp, dmg: 0, speed: 0, xp: 0, goldMin: 0, goldMax: 0,
+              aggro: 0, atkCd: 0, wanderA: 0, wanderT: 0, homeX: se.x, homeY: se.y,
+              flash: flashById[se.id] || 0, scale: se.scale || 1, boss: !!se.boss };
+          });
+          G.guards = (m.guards || []).map(function (g) { return { x: g.x, y: g.y, face: g.face, atkCd: 0, angle: 0 }; });
+          G.friendlies = (m.friendlies || []).map(function (fr) { return { id: fr.id, kind: fr.kind, x: fr.x, y: fr.y, face: fr.face, atkCd: 0, moving: false, owner: fr.owner }; });
+          var self = null;
+          (m.players || []).forEach(function (pl) { if (pl.id === MP.selfId) self = pl; });
+          if (self) {
+            if (MP.lastSelfHp !== null && self.hp < MP.lastSelfHp) G.player.hurtT = 0.15;
+            MP.lastSelfHp = self.hp;
+            G.player.hp = Math.min(self.hp, G.stats.maxHp);
+            if (G.pet && self.pet) { G.pet.hp = Math.min(self.pet.hp, G.pet.maxHp); G.pet.x = self.pet.x; G.pet.y = self.pet.y; }
+            if (self.dead && !G.dead) { G.dead = true; $("death-overlay").classList.add("show"); }
+          }
+          return;
+        }
+        if (m.t === "char") {
+          var c = m.char;
+          G.ch.level = c.level; G.ch.xp = c.xp; G.ch.gold = c.gold; G.ch.kills = c.kills;
+          G.ch.items = c.items || []; G.ch.gear = c.gear || G.ch.gear; G.ch.quest = c.quest || G.ch.quest;
+          refreshStats();
+          if (typeof c.hp === "number") G.player.hp = Math.min(c.hp, G.stats.maxHp);
+          if (G.pet) G.pet.level = G.ch.level;
+          updateQuestTracker();
+          updateHud();
+          return;
+        }
+        if (m.t === "hit") {
+          var e = null;
+          G.enemies.forEach(function (x) { if (x.id === m.id) e = x; });
+          if (e) { e.flash = 0.12; addFloat(e.x, e.y, String(m.dmg), m.crit ? "#ffd23e" : "#ffffff", m.crit); }
+          return;
+        }
+        if (m.t === "kill") {
+          addFloat(G.player.x, G.player.y - 14, "+" + m.gold + " gold", "#f0c94e");
+          addFloat(G.player.x, G.player.y - 30, "+" + m.xp + " XP", "#cfaef2");
+          updateQuestTracker();
+          return;
+        }
+        if (m.t === "dead") { G.dead = true; $("death-overlay").classList.add("show"); return; }
+        if (m.t === "respawned") {
+          G.dead = false; $("death-overlay").classList.remove("show");
+          G.player.x = m.x; G.player.y = m.y; G.player.hp = m.hp;
+          toast("You wake up at the village well.");
+          return;
+        }
+        if (m.t === "chat") { mpChatAdd(m.from, m.cls, m.text); return; }
+        if (m.t === "shopResult") {
+          if (m.ok) { toast(m.message || "Done."); renderShop(); updateHud(); }
+          else toast(m.error || "Shop failed.");
+          return;
+        }
+        if (m.t === "catalog") { MP.catalog = m.catalog; return; }
+        if (m.t === "gmResult") { if (!m.ok) toast(m.error || "GM action failed."); return; }
+        if (m.t === "gmLog") { gmLog(m.msg); return; }
+        if (m.t === "inspect") { mpRenderInspect(m); return; }
+        if (m.t === "gmPlayers") { mpRefreshGmTargets(m.players); return; }
+        if (m.t === "questResult") {
+          if (m.ok) { if (m.action === "claim") toast("Quest complete! +40 gold, +60 XP"); }
+          else toast(m.error || "Quest failed.");
+          return;
+        }
+      }
+
+      /* ----- world chat ----- */
+      function mpChatAdd(from, cls, text) {
+        var log = $("chat-log"); if (!log) return;
+        var line = document.createElement("div");
+        line.className = "chat-line";
+        var who = document.createElement("b");
+        who.textContent = from + ": ";
+        line.appendChild(who);
+        line.appendChild(document.createTextNode(text));
+        log.appendChild(line);
+        while (log.children.length > 30) log.removeChild(log.firstChild);
+        log.scrollTop = log.scrollHeight;
+      }
+      function mpSendChat() {
+        var inp = $("chat-input");
+        var text = inp.value.trim();
+        if (!text) return;
+        inp.value = "";
+        if (MP.online) mpSend({ t: "chat", text: text });
+        else mpChatAdd(G.ch.name, G.ch.cls, text); // local mode: echo to yourself
+      }
+
+      /* ----- shops + armory ----- */
+      function shopCatalog() {
+        if (MP.online && MP.catalog) return MP.catalog;
+        // local fallback: same prices as the server
+        return {
+          shop: [
+            { id: "bandage", name: "Bandage", icon: "🩹", price: 10, healPct: 0.25, desc: "Restores 25% health" },
+            { id: "potion", name: "Healing Potion", icon: "🧪", price: 25, healPct: 0.5, desc: "Restores 50% health" },
+            { id: "gpotion", name: "Greater Healing Potion", icon: "⚗️", price: 60, healPct: 1.0, desc: "Restores 100% health" }
+          ],
+          armory: [
+            { id: "iron_sword", name: "Iron Sword", icon: "🗡️", slot: "weapon", dmg: 8, price: 120, desc: "+8 Damage" },
+            { id: "apprentice_staff", name: "Apprentice Staff", icon: "🔮", slot: "weapon", dmg: 8, price: 120, desc: "+8 Damage" },
+            { id: "hunting_bow", name: "Hunting Bow", icon: "🏹", slot: "weapon", dmg: 8, price: 120, desc: "+8 Damage" },
+            { id: "leather_helm", name: "Leather Helm", icon: "🪖", slot: "helm", hp: 40, price: 80, desc: "+40 Health" },
+            { id: "chainmail_vest", name: "Chainmail Vest", icon: "🛡️", slot: "chest", hp: 120, price: 200, desc: "+120 Health" },
+            { id: "swift_boots", name: "Swift Boots", icon: "🥾", slot: "boots", speed: 15, price: 90, desc: "+15 Speed" }
+          ]
+        };
+      }
+      function sellPriceClient(id) {
+        var cat = shopCatalog();
+        var all = cat.shop.concat(cat.armory);
+        for (var i = 0; i < all.length; i++) if (all[i].id === id) return Math.max(1, Math.floor(all[i].price / 2));
+        return 250; // GM gear resale
+      }
+      function mpOpenShop(kind) {
+        if (!G) return;
+        MP.shopKind = kind;
+        $("shop-title").textContent = kind === "armory" ? "Armory" : "General Shop";
+        $("shop-sub").textContent = kind === "armory" ? "Armorer Durn · Weapons and armor." : "Shopkeeper Bram · Potions and supplies.";
+        var eqTitle = $("shop-equipped-title"), eq = $("shop-equipped");
+        if (kind === "armory") { eqTitle.style.display = ""; eq.style.display = ""; }
+        else { eqTitle.style.display = "none"; eq.style.display = "none"; }
+        renderShop();
+        $("shop-overlay").classList.add("show");
+      }
+      function renderShop() {
+        if (!G || !MP.shopKind) return;
+        var cat = shopCatalog();
+        var list = MP.shopKind === "armory" ? cat.armory : cat.shop;
+        var catEl = $("shop-catalog");
+        catEl.innerHTML = "";
+        list.forEach(function (it) {
+          var row = document.createElement("div"); row.className = "inv-row";
+          var left = document.createElement("div");
+          var nm = document.createElement("span"); nm.className = "inv-name"; nm.textContent = it.icon + " " + it.name;
+          var ds = document.createElement("span"); ds.className = "inv-desc"; ds.textContent = it.desc;
+          left.appendChild(nm); left.appendChild(document.createTextNode(" ")); left.appendChild(ds);
+          var buy = document.createElement("button");
+          buy.className = "gm-btn gold-btn"; buy.type = "button";
+          buy.textContent = "Buy · " + it.price + "g";
+          buy.disabled = G.ch.gold < it.price;
+          buy.addEventListener("click", function () { mpShopBuy(it.id); });
+          row.appendChild(left); row.appendChild(buy);
+          catEl.appendChild(row);
+        });
+        if (MP.shopKind === "armory") {
+          var eq = $("shop-equipped"); eq.innerHTML = "";
+          ["weapon", "helm", "chest", "boots"].forEach(function (slot) {
+            var gid = G.ch.gear && G.ch.gear[slot];
+            var row = document.createElement("div"); row.className = "inv-row";
+            var left = document.createElement("div");
+            var label = slot.charAt(0).toUpperCase() + slot.slice(1);
+            if (gid && GEAR[gid]) {
+              var nm = document.createElement("span"); nm.className = "inv-name"; nm.textContent = GEAR[gid].icon + " " + GEAR[gid].name;
+              var ds = document.createElement("span"); ds.className = "inv-desc"; ds.textContent = GEAR[gid].desc;
+              left.appendChild(nm); left.appendChild(document.createTextNode(" ")); left.appendChild(ds);
+            } else {
+              var nm2 = document.createElement("span"); nm2.className = "inv-name"; nm2.textContent = label;
+              var ds2 = document.createElement("span"); ds2.className = "inv-desc"; ds2.textContent = "Empty";
+              left.appendChild(nm2); left.appendChild(document.createTextNode(" ")); left.appendChild(ds2);
+            }
+            row.appendChild(left);
+            eq.appendChild(row);
+          });
+        }
+        var inv = $("shop-inventory"); inv.innerHTML = "";
+        if (!G.ch.items.length) inv.innerHTML = '<p class="gm-note">Nothing to sell.</p>';
+        G.ch.items.forEach(function (it) {
+          var def = it.gear ? GEAR[it.id] : ITEMS[it.id];
+          if (!def) return;
+          var row = document.createElement("div"); row.className = "inv-row";
+          var left = document.createElement("div");
+          var nm = document.createElement("span"); nm.className = "inv-name"; nm.textContent = def.icon + " " + def.name;
+          var ds = document.createElement("span"); ds.className = "inv-desc"; ds.textContent = def.desc + (it.gear ? "" : " · ×" + (it.qty || 1));
+          left.appendChild(nm); left.appendChild(document.createTextNode(" ")); left.appendChild(ds);
+          var sell = document.createElement("button");
+          sell.className = "gm-btn"; sell.type = "button";
+          sell.textContent = "Sell · " + sellPriceClient(it.id) + "g";
+          sell.addEventListener("click", function () { mpShopSell(it.id); });
+          row.appendChild(left); row.appendChild(sell);
+          inv.appendChild(row);
+        });
+        $("shop-gold").textContent = G.ch.gold.toLocaleString() + " gold";
+      }
+      function mpShopBuy(id) {
+        if (!G) return;
+        if (MP.online) { mpSend({ t: "shop", shop: MP.shopKind, action: "buy", id: id, qty: 1 }); return; }
+        var cat = shopCatalog();
+        var list = MP.shopKind === "armory" ? cat.armory : cat.shop;
+        var def = null;
+        list.forEach(function (it) { if (it.id === id) def = it; });
+        if (!def) { toast("That item is not sold here."); return; }
+        if (G.ch.gold < def.price) { toast("Not enough gold — you need " + def.price + "."); return; }
+        if (MP.shopKind === "armory") {
+          if (G.ch.items.some(function (it) { return it.gear && it.id === id; })) { toast("You already own that."); return; }
+          G.ch.items.push({ id: id, gear: true });
+        } else {
+          var found = null;
+          G.ch.items.forEach(function (it) { if (!it.gear && it.id === id) found = it; });
+          if (found) found.qty = (found.qty || 0) + 1; else G.ch.items.push({ id: id, qty: 1 });
+        }
+        G.ch.gold -= def.price;
+        toast("Bought " + def.name + " for " + def.price + " gold.");
+        renderShop(); updateHud();
+      }
+      function mpShopSell(id) {
+        if (!G) return;
+        if (MP.online) { mpSend({ t: "shop", shop: MP.shopKind, action: "sell", id: id }); return; }
+        var idx = -1;
+        G.ch.items.forEach(function (it, i) { if (it.id === id) idx = i; });
+        if (idx < 0) { toast("You do not own that."); return; }
+        var it = G.ch.items[idx];
+        var price = sellPriceClient(id);
+        if (it.gear) {
+          var gd = GEAR[id];
+          if (gd && G.ch.gear[gd.slot] === id) G.ch.gear[gd.slot] = null;
+          G.ch.items.splice(idx, 1);
+          refreshStats();
+        } else {
+          it.qty = (it.qty || 1) - 1;
+          if (it.qty <= 0) G.ch.items.splice(idx, 1);
+        }
+        G.ch.gold += price;
+        toast("Sold for " + price + " gold.");
+        renderShop(); updateHud();
+      }
+
+      /* ----- GM console: multiplayer routing ----- */
+      function mpGmTarget() {
+        var sel = $("gm-target");
+        return sel && sel.value ? sel.value : "self";
+      }
+      function mpGmSend(action, extra) {
+        var msg = { t: "gm", action: action, target: mpGmTarget() };
+        if (extra) for (var k in extra) msg[k] = extra[k];
+        mpSend(msg);
+      }
+      function mpRefreshGmTargets(players) {
+        var sel = $("gm-target"); if (!sel) return;
+        var cur = sel.value || "self";
+        sel.innerHTML = "";
+        var opt0 = document.createElement("option");
+        opt0.value = "self";
+        opt0.textContent = "Yourself" + (G ? " (" + G.ch.name + ")" : "");
+        sel.appendChild(opt0);
+        var names = (players || MP.players.map(function (pl) { return pl.name; }));
+        names.forEach(function (n) {
+          var o = document.createElement("option");
+          o.value = n; o.textContent = n;
+          sel.appendChild(o);
+        });
+        sel.value = names.indexOf(cur) >= 0 ? cur : "self";
+      }
+      function mpRenderInspect(d) {
+        var el = $("gm-inspect-result"); if (!el) return;
+        el.innerHTML = "";
+        var title = document.createElement("h4");
+        title.style.marginTop = "10px";
+        title.textContent = "Inspect — " + d.name;
+        el.appendChild(title);
+        var rows = [
+          ["Name", d.name], ["Class", (CLASSES[d.cls] || {}).label || d.cls], ["Level", String(d.level)],
+          ["XP", String(d.xp)], ["Health", d.hp + " / " + d.maxHp], ["Damage", String(d.dmg)],
+          ["Gold (money)", String(d.gold)], ["Kills", String(d.kills)],
+          ["Quest", d.quest ? d.quest.state + " (" + d.quest.kills + "/" + QUEST_NEED + ")" : "—"]
+        ];
+        var grid = document.createElement("div"); grid.className = "gm-stats";
+        rows.forEach(function (r) {
+          var span = document.createElement("span");
+          span.appendChild(document.createTextNode(r[0] + " "));
+          var b = document.createElement("b"); b.textContent = r[1];
+          span.appendChild(b);
+          grid.appendChild(span);
+        });
+        el.appendChild(grid);
+        var h = document.createElement("h4"); h.style.marginTop = "10px"; h.textContent = "Inventory"; el.appendChild(h);
+        var items = d.items || [];
+        if (!items.length) {
+          var p = document.createElement("p"); p.className = "gm-note"; p.textContent = "Empty."; el.appendChild(p);
+        }
+        items.forEach(function (it) {
+          var def = it.gear ? GEAR[it.id] : ITEMS[it.id];
+          if (!def) return;
+          var row = document.createElement("div"); row.className = "inv-row";
+          var left = document.createElement("div");
+          var nm = document.createElement("span"); nm.className = "inv-name"; nm.textContent = def.icon + " " + def.name;
+          left.appendChild(nm);
+          if (!it.gear) left.appendChild(document.createTextNode(" ×" + (it.qty || 1)));
+          if (it.gear && d.gear && d.gear[def.slot] === it.id) {
+            var tag = document.createElement("span"); tag.className = "equipped-tag"; tag.textContent = "EQUIPPED";
+            left.appendChild(document.createTextNode(" ")); left.appendChild(tag);
+          }
+          row.appendChild(left);
+          el.appendChild(row);
+        });
+      }
+      function mpWireGmOnline() {
+        if (MP.online) {
+          var note = $("gm-mode-note");
+          if (note) note.textContent = "Online — pick a target player below. Give/inspect applies to them; “Yourself” is you.";
+          mpRefreshGmTargets();
+          mpSend({ t: "gm", action: "players" });
+        }
+      }
+
+      /* ----- HUD button wiring (shop / armory / chat) ----- */
+      $("btn-shop").addEventListener("click", function () { mpOpenShop("shop"); });
+      $("btn-armory").addEventListener("click", function () { mpOpenShop("armory"); });
+      $("shop-close").addEventListener("click", function () { $("shop-overlay").classList.remove("show"); MP.shopKind = null; });
+      $("btn-chat").addEventListener("click", function () {
+        var row = $("chat-row");
+        var open = row.style.display === "none";
+        row.style.display = open ? "flex" : "none";
+        if (open) $("chat-input").focus();
+      });
+      $("chat-send").addEventListener("click", mpSendChat);
+      $("chat-input").addEventListener("keydown", function (e) { if (e.key === "Enter") mpSendChat(); });
+      $("gm-inspect").addEventListener("click", function () {
+        var target = mpGmTarget();
+        if (target === "self") { renderGm(); $("gm-inspect-result").innerHTML = '<p class="gm-note">That is you — your stats are above.</p>'; return; }
+        if (!MP.online) { $("gm-inspect-result").innerHTML = '<p class="gm-note">Inspecting other players needs the server (online mode).</p>'; return; }
+        mpGmSend("inspect", {});
+      });
+      $("gm-refresh-players").addEventListener("click", function () {
+        if (MP.online) mpSend({ t: "gm", action: "players" });
+        mpRefreshGmTargets();
+      });
+
+
+      /* ---------------- helpers ---------------- */
+      function $(id) { return document.getElementById(id); }
+      function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+      function dist(ax, ay, bx, by) { var dx = ax - bx, dy = ay - by; return Math.sqrt(dx * dx + dy * dy); }
+      function rand(a, b) { return a + Math.random() * (b - a); }
+      function randi(a, b) { return Math.floor(rand(a, b + 1)); }
+      function xpNeed(level) { return Math.round(80 * Math.pow(level, 1.32)); }
+      function showScreen(id) {
+        var screens = ["screen-login", "screen-select", "screen-create", "screen-game"];
+        for (var i = 0; i < screens.length; i++) $(screens[i]).classList.toggle("active", screens[i] === id);
+      }
+      function toast(msg, ms) {
+        var zone = $("toast-zone");
+        var el = document.createElement("div");
+        el.className = "toast"; el.textContent = msg;
+        zone.appendChild(el);
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, ms || 3200);
+        while (zone.children.length > 3) zone.removeChild(zone.firstChild);
+      }
+
+      /* =====================================================================
+         LOGIN
+      ===================================================================== */
+      function doLogin(name, guest) { // local fallback (no server)
+        account = { name: name, guest: !!guest };
+        $("account-name").textContent = name + (guest ? " (Guest)" : "");
+        renderCharList();
+        showScreen("screen-select");
+      }
+      $("btn-login").addEventListener("click", mpDoLogin);
+      $("btn-register").addEventListener("click", mpDoRegister);
+      $("login-name").addEventListener("keydown", function (e) { if (e.key === "Enter") $("btn-login").click(); });
+      $("login-password").addEventListener("keydown", function (e) { if (e.key === "Enter") $("btn-login").click(); });
+      $("btn-guest").addEventListener("click", mpDoGuest);
+      $("btn-logout").addEventListener("click", function () {
+        mpDisconnect();
+        MP.token = null; MP.isGM = false;
+        account = null; characters = []; $("login-name").value = ""; $("login-password").value = "";
+        showScreen("screen-login");
+      });
+
+      /* =====================================================================
+         CHARACTER SELECT / CREATE
+      ===================================================================== */
+      function renderCharList() {
+        var wrap = $("char-list");
+        wrap.innerHTML = "";
+        $("btn-new-char").disabled = characters.length >= 6;
+        if (!characters.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-note";
+          empty.innerHTML = "No characters yet.<br/>Create your first hero of Dawnhollow Vale below.";
+          wrap.appendChild(empty);
+          return;
+        }
+        var grid = document.createElement("div");
+        grid.className = "char-grid";
+        characters.forEach(function (ch, idx) {
+          var c = CLASSES[ch.cls];
+          var card = document.createElement("div");
+          card.className = "char-card panel";
+          card.innerHTML =
+            '<span class="class-badge badge-' + ch.cls + '">' + c.label + "</span>" +
+            '<span class="cname"></span>' +
+            '<span class="cmeta">Level ' + ch.level + " · Dawnhollow Vale</span>" +
+            '<span class="cgold">Gold ' + ch.gold + "</span>";
+          card.querySelector(".cname").textContent = ch.name;
+          var del = document.createElement("button");
+          del.className = "char-del"; del.type = "button"; del.textContent = "✕"; del.title = "Delete character";
+          del.addEventListener("click", function () {
+            if (mpDeleteCharacter(ch.name)) return; // server mode refreshes the list
+            characters.splice(idx, 1); renderCharList();
+          });
+          var enter = document.createElement("button");
+          enter.className = "btn enter"; enter.type = "button"; enter.textContent = "Enter World";
+          enter.addEventListener("click", function () { enterWorld(ch); });
+          card.appendChild(del); card.appendChild(enter);
+          grid.appendChild(card);
+        });
+        wrap.appendChild(grid);
+      }
+      $("btn-new-char").addEventListener("click", function () {
+        $("create-error").textContent = ""; $("char-name").value = "";
+        showScreen("screen-create");
+      });
+      $("btn-create-back").addEventListener("click", function () { renderCharList(); showScreen("screen-select"); });
+
+      var classCards = document.querySelectorAll(".class-card");
+      classCards.forEach(function (card) {
+        card.addEventListener("click", function () {
+          selectedClass = card.getAttribute("data-class");
+          classCards.forEach(function (c2) { c2.setAttribute("aria-pressed", c2 === card ? "true" : "false"); });
+        });
+      });
+      $("btn-create").addEventListener("click", function () {
+        var name = $("char-name").value.trim();
+        if (name.length < 2 || name.length > 16) { $("create-error").textContent = "Name must be 2–16 characters."; return; }
+        if (!/^[A-Za-z0-9 ]+$/.test(name)) { $("create-error").textContent = "Use letters, numbers and spaces only."; return; }
+        for (var i = 0; i < characters.length; i++) {
+          if (characters[i].name.toLowerCase() === name.toLowerCase()) { $("create-error").textContent = "You already have a character with that name."; return; }
+        }
+        if (MP.token && MP.serverAvailable) { // server mode: create on the server
+          apiPost("/api/characters", { name: name, cls: selectedClass }, MP.token).then(function (d) {
+            if (!d.ok) { $("create-error").textContent = d.error || "Could not create character."; return; }
+            mpRefreshCharacters();
+            toast("Character created — welcome to Dawnhollow Vale, " + name + ".");
+          });
+          return;
+        }
+        characters.push({ name: name, cls: selectedClass, level: 1, xp: 0, gold: 60, kills: 0, items: [], gear: { weapon: null, helm: null, chest: null, boots: null }, quest: { state: "none", kills: 0 } });
+        renderCharList();
+        showScreen("screen-select");
+        toast("Character created — welcome to Dawnhollow Vale, " + name + ".");
+      });
+      $("char-name").addEventListener("keydown", function (e) { if (e.key === "Enter") $("btn-create").click(); });
+
+      /* =====================================================================
+         WORLD — static scenery prerender
+      ===================================================================== */
+      var rngState = 1234567;
+      function srand() { rngState = (rngState * 1103515245 + 12345) % 2147483648; return rngState / 2147483648; }
+
+      var trees = [];      // {x,y,r} colliders + canopy draw data
+      var houses = [];     // {x,y,w,h,roof}
+      var bushes = [];
+      var worldCanvas = document.createElement("canvas");
+      worldCanvas.width = WORLD.w; worldCanvas.height = WORLD.h;
+
+      function buildWorld() {
+        var g = worldCanvas.getContext("2d");
+        // grass
+        g.fillStyle = "#5f9e46"; g.fillRect(0, 0, WORLD.w, WORLD.h);
+        var i, x, y;
+        for (i = 0; i < 2600; i++) { // grass texture patches
+          x = srand() * WORLD.w; y = srand() * WORLD.h;
+          g.fillStyle = srand() > 0.5 ? "rgba(0,0,0,0.05)" : "rgba(255,255,220,0.05)";
+          g.beginPath(); g.ellipse(x, y, 14 + srand() * 30, 8 + srand() * 16, srand() * 3, 0, 7); g.fill();
+        }
+        // darker wild grass to the east
+        var grad = g.createLinearGradient(1000, 0, 1500, 0);
+        grad.addColorStop(0, "rgba(30,70,25,0)"); grad.addColorStop(1, "rgba(30,70,25,0.35)");
+        g.fillStyle = grad; g.fillRect(1000, 0, WORLD.w - 1000, WORLD.h);
+        // dirt path east out of the village
+        g.strokeStyle = "#b99a67"; g.lineWidth = 74; g.lineCap = "round";
+        g.beginPath(); g.moveTo(VILLAGE.x, VILLAGE.y);
+        g.bezierCurveTo(1150, 860, 1650, 1010, 2350, 880); g.stroke();
+        g.strokeStyle = "rgba(0,0,0,0.08)"; g.lineWidth = 74;
+        for (i = 0; i < 26; i++) { // path speckles
+          var t = srand(); x = 700 + t * 1650; y = 900 + Math.sin(t * 5) * 60 + (srand() - 0.5) * 50;
+          g.beginPath(); g.ellipse(x, y, 10 + srand() * 14, 5 + srand() * 7, 0, 0, 7); g.fill();
+        }
+        // village dirt
+        g.fillStyle = "#c2a878";
+        g.beginPath(); g.ellipse(VILLAGE.x, VILLAGE.y, VILLAGE.r + 46, (VILLAGE.r + 46) * 0.86, 0, 0, 7); g.fill();
+        g.fillStyle = "rgba(0,0,0,0.05)";
+        for (i = 0; i < 260; i++) {
+          var a = srand() * Math.PI * 2, rr = Math.sqrt(srand()) * VILLAGE.r;
+          x = VILLAGE.x + Math.cos(a) * rr; y = VILLAGE.y + Math.sin(a) * rr * 0.86;
+          g.beginPath(); g.ellipse(x, y, 8 + srand() * 16, 4 + srand() * 8, 0, 0, 7); g.fill();
+        }
+        // pond south-east
+        g.fillStyle = "#3f7f9e";
+        g.beginPath(); g.ellipse(1980, 1420, 190, 110, 0.3, 0, 7); g.fill();
+        g.fillStyle = "rgba(255,255,255,0.18)";
+        g.beginPath(); g.ellipse(1930, 1390, 90, 40, 0.3, 0, 7); g.fill();
+
+        // houses around the village
+        houses = [
+          { x: VILLAGE.x - 235, y: VILLAGE.y - 215, w: 150, h: 110, roof: "#7a4a2b" },
+          { x: VILLAGE.x + 105, y: VILLAGE.y - 250, w: 165, h: 118, roof: "#5b6e8c" },
+          { x: VILLAGE.x - 265, y: VILLAGE.y + 95,  w: 140, h: 104, roof: "#8c5a35" },
+          { x: VILLAGE.x + 150, y: VILLAGE.y + 150, w: 132, h: 100, roof: "#6e4a5e" }
+        ];
+        houses.forEach(function (h) { drawHouse(g, h); });
+        // the Armory — stone building with an anvil sign, inside the safe zone
+        houses.push({ x: ARMORY.x, y: ARMORY.y, w: ARMORY.w, h: ARMORY.h, roof: "#5a5a66" });
+        drawHouse(g, { x: ARMORY.x, y: ARMORY.y, w: ARMORY.w, h: ARMORY.h, roof: "#5a5a66" });
+        g.fillStyle = "#2c3844";
+        g.fillRect(ARMORY.x + ARMORY.w / 2 - 17, ARMORY.y + ARMORY.h - 26, 34, 12);
+        g.fillStyle = "#cfd8e0";
+        g.fillRect(ARMORY.x + ARMORY.w / 2 - 12, ARMORY.y + ARMORY.h - 34, 24, 8);
+        drawWell(g, VILLAGE.x, VILLAGE.y - 30);
+
+        // trees: ring the world + scatter in the wild, keep the village clear
+        trees = [];
+        for (i = 0; i < 210; i++) {
+          x = 60 + srand() * (WORLD.w - 120); y = 60 + srand() * (WORLD.h - 120);
+          if (dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r + 90) continue;
+          if (Math.abs(y - 900) < 80 && x > 900) continue; // keep the path clear
+          if (dist(x, y, 1980, 1420) < 240) continue;      // keep the pond clear
+          trees.push({ x: x, y: y, r: 15 + srand() * 8, s: 0.85 + srand() * 0.5 });
+        }
+        // a few village trees
+        trees.push({ x: VILLAGE.x - 90, y: VILLAGE.y + 235, r: 17, s: 1.05 });
+        trees.push({ x: VILLAGE.x + 265, y: VILLAGE.y - 60, r: 16, s: 0.95 });
+        trees.forEach(function (t) { drawTree(g, t); });
+
+        // flower bushes in the wild
+        bushes = [];
+        for (i = 0; i < 60; i++) {
+          x = srand() * WORLD.w; y = srand() * WORLD.h;
+          if (dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r + 30) continue;
+          bushes.push({ x: x, y: y });
+          g.fillStyle = "#4c8a3d";
+          g.beginPath(); g.ellipse(x, y, 20, 14, 0, 0, 7); g.fill();
+          g.fillStyle = "#9fd8e8";
+          for (var f = 0; f < 6; f++) { g.beginPath(); g.arc(x + (srand() - 0.5) * 26, y + (srand() - 0.5) * 16, 3.2, 0, 7); g.fill(); }
+        }
+      }
+      function drawHouse(g, h) {
+        g.fillStyle = "rgba(0,0,0,0.22)";
+        g.beginPath(); g.ellipse(h.x + h.w / 2, h.y + h.h + 10, h.w * 0.58, 14, 0, 0, 7); g.fill();
+        g.fillStyle = "#d8c49a"; g.fillRect(h.x, h.y, h.w, h.h);
+        g.strokeStyle = "#8a6f47"; g.lineWidth = 4; g.strokeRect(h.x, h.y, h.w, h.h);
+        g.fillStyle = "#6e4f30";
+        g.fillRect(h.x - 8, h.y - 16, h.w + 16, 26); // roof base shadow
+        g.fillStyle = h.roof;
+        g.beginPath();
+        g.moveTo(h.x - 10, h.y - 12); g.lineTo(h.x + h.w / 2, h.y - 52); g.lineTo(h.x + h.w + 10, h.y - 12); g.closePath(); g.fill();
+        g.fillStyle = "#5e4028"; g.fillRect(h.x + h.w / 2 - 14, h.y + h.h - 46, 28, 46); // door
+        g.fillStyle = "#ffd873"; g.fillRect(h.x + 18, h.y + 26, 24, 20); g.fillRect(h.x + h.w - 42, h.y + 26, 24, 20); // windows
+        g.strokeStyle = "#6e4f30"; g.lineWidth = 2; g.strokeRect(h.x + 18, h.y + 26, 24, 20); g.strokeRect(h.x + h.w - 42, h.y + 26, 24, 20);
+      }
+      function drawWell(g, x, y) {
+        g.fillStyle = "rgba(0,0,0,0.25)";
+        g.beginPath(); g.ellipse(x, y + 16, 44, 12, 0, 0, 7); g.fill();
+        g.fillStyle = "#8d9299";
+        g.beginPath(); g.ellipse(x, y, 38, 26, 0, 0, 7); g.fill();
+        g.fillStyle = "#2c3844";
+        g.beginPath(); g.ellipse(x, y - 3, 27, 17, 0, 0, 7); g.fill();
+        g.fillStyle = "#6e4f30"; g.fillRect(x - 34, y - 46, 7, 34); g.fillRect(x + 27, y - 46, 7, 34);
+        g.fillStyle = "#8a5a33";
+        g.beginPath(); g.moveTo(x - 44, y - 42); g.lineTo(x, y - 64); g.lineTo(x + 44, y - 42); g.closePath(); g.fill();
+      }
+      function drawTree(g, t) {
+        g.fillStyle = "rgba(0,0,0,0.2)";
+        g.beginPath(); g.ellipse(t.x, t.y + 8, 26 * t.s, 9 * t.s, 0, 0, 7); g.fill();
+        g.fillStyle = "#6e4f30"; g.fillRect(t.x - 6 * t.s, t.y - 8 * t.s, 12 * t.s, 18 * t.s);
+        g.fillStyle = "#3f7d2e";
+        g.beginPath(); g.arc(t.x, t.y - 30 * t.s, 30 * t.s, 0, 7); g.fill();
+        g.fillStyle = "#4c9440";
+        g.beginPath(); g.arc(t.x - 16 * t.s, t.y - 18 * t.s, 20 * t.s, 0, 7); g.fill();
+        g.beginPath(); g.arc(t.x + 17 * t.s, t.y - 20 * t.s, 19 * t.s, 0, 7); g.fill();
+        g.fillStyle = "rgba(255,255,220,0.13)";
+        g.beginPath(); g.arc(t.x - 10 * t.s, t.y - 40 * t.s, 11 * t.s, 0, 7); g.fill();
+      }
+
+      /* =====================================================================
+         GAME RUNTIME
+      ===================================================================== */
+      var canvas = $("game-canvas"), ctx = canvas.getContext("2d");
+      var minimap = $("minimap"), mctx = minimap.getContext("2d");
+      var G = null;          // runtime state
+      var rafId = null, lastTs = 0;
+
+      function gearBonus(ch) {
+        var b = { hp: 0, dmg: 0, speed: 0 };
+        if (ch.gear) {
+          for (var slot in ch.gear) {
+            var id = ch.gear[slot];
+            if (id && GEAR[id]) { b.hp += GEAR[id].hp || 0; b.dmg += GEAR[id].dmg || 0; b.speed += GEAR[id].speed || 0; }
+          }
+        }
+        return b;
+      }
+      function classStats(ch) {
+        var c = CLASSES[ch.cls];
+        var gb = gearBonus(ch);
+        return {
+          maxHp: c.hp + (ch.level - 1) * 14 + gb.hp,
+          dmg: c.dmg + (ch.level - 1) * 2 + gb.dmg,
+          range: c.range, atkRate: c.atkRate, speed: c.speed + gb.speed
+        };
+      }
+      function enterWorld(ch) {
+        if (!ch.items) ch.items = [];
+        if (!ch.gear) ch.gear = { weapon: null, helm: null, chest: null, boots: null };
+        if (typeof ch.kills !== "number") ch.kills = 0;
+        var st = classStats(ch);
+        G = {
+          ch: ch, stats: st,
+          player: {
+            x: VILLAGE.x + 30, y: VILLAGE.y + 120, r: 16,
+            hp: st.maxHp, res: CLASSES[ch.cls].resMax, face: 1,
+            atkCd: 0, hurtT: 0, lastHurt: -99, moving: false
+          },
+          pet: ch.cls === "hunter" ? { x: VILLAGE.x - 30, y: VILLAGE.y + 150, r: 12, hp: 80, maxHp: 80, atkCd: 0, face: -1, level: ch.level } : null,
+          halden: { x: VILLAGE.x - 66, y: VILLAGE.y - 6, bob: 0 },
+          guards: [], enemies: [], projectiles: [], floats: [], slashes: [], friendlies: [],
+          cam: { x: 0, y: 0 }, time: 0, idleHunt: false, dead: false, dialogOpen: false, gmOpen: false, gmLog: []
+        };
+        for (var i = 0; i < 3; i++) {
+          G.guards.push({ angle: (Math.PI * 2 / 3) * i, atkCd: 0, x: 0, y: 0, face: 1 });
+        }
+        for (var s = 0; s < 14; s++) spawnEnemy(true);
+        $("hud-portrait").textContent = CLASSES[ch.cls].icon;
+        $("hud-name").textContent = ch.name;
+        $("bar-res-wrap").className = "bar res " + CLASSES[ch.cls].resClass;
+        $("pet-bar").classList.toggle("show", !!G.pet);
+        setIdle(false);
+        updateQuestTracker();
+        showScreen("screen-game");
+        resizeCanvas();
+        mpJoinWorld(ch); // connects to the server when one is available; local mode otherwise
+        toast("Welcome to Dawnhollow Vale, " + ch.name + ".");
+        if (ch.quest.state === "none") setTimeout(function () { if (G) toast("Steward Halden by the well has work for you — look for the ! mark."); }, 3600);
+        lastTs = 0;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(loop);
+      }
+      function leaveWorld() {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null; G = null;
+        mpDisconnect();
+        $("dialog-overlay").classList.remove("show");
+        $("gm-overlay").classList.remove("show");
+        $("death-overlay").classList.remove("show");
+        renderCharList();
+        showScreen("screen-select");
+      }
+      $("btn-chars").addEventListener("click", leaveWorld);
+
+      function createEnemy(type, x, y, opts) {
+        opts = opts || {};
+        var lvl = G ? Math.max(1, G.ch.level + randi(0, 1)) : 1;
+        var hpMul = opts.hpMul || 1, dmgMul = opts.dmgMul || 1;
+        var baseHp = Math.round(type.hp * (1 + (lvl - 1) * 0.22) * hpMul);
+        var sc = opts.scale || 1;
+        return {
+          kind: type.kind, name: opts.name || type.name, x: x, y: y,
+          r: (type.kind === "slime" ? 15 : 16) * sc,
+          hp: baseHp, maxHp: baseHp,
+          dmg: Math.round((type.dmg + (lvl - 1)) * dmgMul), speed: type.speed,
+          xp: Math.round(type.xp * (opts.xpMul || 1)),
+          goldMin: Math.round(type.goldMin * (opts.goldMul || 1)), goldMax: Math.round(type.goldMax * (opts.goldMul || 1)),
+          aggro: opts.aggro || type.aggro, atkCd: rand(0.2, 0.8), wanderA: rand(0, Math.PI * 2), wanderT: rand(1, 3),
+          homeX: x, homeY: y, flash: 0, scale: sc, boss: !!opts.boss
+        };
+      }
+      function spawnEnemy(anywhere) {
+        var type = ENEMY_TYPES[randi(0, ENEMY_TYPES.length - 1)];
+        var x, y, tries = 0;
+        do {
+          x = rand(1120, WORLD.w - 90); y = rand(90, WORLD.h - 90);
+          tries++;
+        } while (tries < 24 && (dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r + 170 || dist(x, y, 1980, 1420) < 250 || (G && dist(x, y, G.player.x, G.player.y) < (anywhere ? 260 : 430))));
+        G.enemies.push(createEnemy(type, x, y));
+      }
+      function summonSpot() {
+        var p = G.player;
+        var a = rand(0, Math.PI * 2);
+        var x = p.x + Math.cos(a) * 130, y = p.y + Math.sin(a) * 130;
+        if (inSafeZone(x, y)) { // summons land outside the village line, where the fight is fair
+          var d = dist(x, y, VILLAGE.x, VILLAGE.y) || 1;
+          x = VILLAGE.x + (x - VILLAGE.x) / d * (VILLAGE.r + 70);
+          y = VILLAGE.y + (y - VILLAGE.y) / d * (VILLAGE.r + 70);
+        }
+        return { x: clamp(x, 40, WORLD.w - 40), y: clamp(y, 40, WORLD.h - 40) };
+      }
+
+      /* ---------------- input ---------------- */
+      var keys = {};
+      var joy = { active: false, dx: 0, dy: 0, id: null };
+      window.addEventListener("keydown", function (e) {
+        keys[e.key.toLowerCase()] = true;
+        if (G && (e.key === "e" || e.key === "E") && nearHalden()) toggleDialog(true);
+        if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].indexOf(e.key.toLowerCase()) >= 0) e.preventDefault();
+      });
+      window.addEventListener("keyup", function (e) { keys[e.key.toLowerCase()] = false; });
+
+      var joyBase = $("joy-base"), joyKnob = $("joy-knob");
+      function joyPos(e) {
+        var r = joyBase.getBoundingClientRect();
+        var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        var dx = e.clientX - cx, dy = e.clientY - cy;
+        var d = Math.sqrt(dx * dx + dy * dy), max = r.width / 2 - 6;
+        if (d > max) { dx = dx / d * max; dy = dy / d * max; }
+        joyKnob.style.transform = "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px))";
+        joy.dx = dx / max; joy.dy = dy / max;
+        if (Math.abs(joy.dx) < 0.14) joy.dx = 0;
+        if (Math.abs(joy.dy) < 0.14) joy.dy = 0;
+      }
+      joyBase.addEventListener("pointerdown", function (e) { joy.active = true; joy.id = e.pointerId; joyBase.setPointerCapture(e.pointerId); joyPos(e); });
+      joyBase.addEventListener("pointermove", function (e) { if (joy.active && e.pointerId === joy.id) joyPos(e); });
+      function joyEnd(e) {
+        if (e.pointerId !== joy.id) return;
+        joy.active = false; joy.dx = 0; joy.dy = 0;
+        joyKnob.style.transform = "translate(-50%, -50%)";
+      }
+      joyBase.addEventListener("pointerup", joyEnd);
+      joyBase.addEventListener("pointercancel", joyEnd);
+
+      function resizeCanvas() {
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(window.innerWidth * dpr);
+        canvas.height = Math.round(window.innerHeight * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      window.addEventListener("resize", function () { if (G) resizeCanvas(); });
+
+      /* ---------------- combat helpers ---------------- */
+      function inSafeZone(x, y) { return dist(x, y, VILLAGE.x, VILLAGE.y) < VILLAGE.r; }
+      function addFloat(x, y, text, color, big) {
+        G.floats.push({ x: x + rand(-6, 6), y: y - 26, text: text, color: color, t: 0, life: big ? 1.25 : 0.95, big: !!big });
+      }
+      function damageEnemy(e, dmg, crit) {
+        if (MP.online) return; // the server owns enemy HP online
+        e.hp -= dmg; e.flash = 0.12;
+        addFloat(e.x, e.y, String(dmg), crit ? "#ffd23e" : "#ffffff", crit);
+        if (e.hp <= 0) killEnemy(e);
+      }
+      function killEnemy(e) {
+        if (MP.online) return; // the server owns kills online
+        var idx = G.enemies.indexOf(e);
+        if (idx >= 0) G.enemies.splice(idx, 1);
+        var ch = G.ch;
+        ch.kills++;
+        var gold = randi(e.goldMin, e.goldMax);
+        ch.gold += gold;
+        addFloat(e.x, e.y - 14, "+" + gold + " gold", "#f0c94e");
+        gainXp(e.xp, e.x, e.y);
+        if (ch.quest.state === "active") {
+          ch.quest.kills = Math.min(QUEST_NEED, ch.quest.kills + 1);
+          if (ch.quest.kills >= QUEST_NEED) {
+            ch.quest.state = "ready";
+            toast("Quest complete — return to Steward Halden.");
+          }
+          updateQuestTracker();
+        }
+        setTimeout(function () { if (G && G.enemies.length < 15) spawnEnemy(false); }, 2600);
+      }
+      function gainXp(amount, x, y) {
+        if (MP.online) return; // the server owns XP online
+        var ch = G.ch;
+        ch.xp += amount;
+        addFloat(x, y - 30, "+" + amount + " XP", "#cfaef2");
+        while (ch.xp >= xpNeed(ch.level) && ch.level < LEVEL_CAP) {
+          ch.xp -= xpNeed(ch.level);
+          ch.level++;
+          var st = classStats(ch);
+          G.stats = st;
+          G.player.hp = st.maxHp;
+          if (G.pet) { G.pet.maxHp = 80 + (ch.level - 1) * 10; G.pet.hp = G.pet.maxHp; G.pet.level = ch.level; }
+          addFloat(G.player.x, G.player.y - 20, "LEVEL UP!", "#f0c94e", true);
+          toast("Level up! You are now level " + ch.level + ".");
+        }
+        if (ch.level >= LEVEL_CAP) ch.xp = 0; // player cap — only a GM set-level goes past 60
+      }
+      function hurtPlayer(dmg) {
+        if (MP.online) return; // the server owns HP online
+        var p = G.player;
+        if (G.dead || inSafeZone(p.x, p.y)) return;
+        p.hp -= dmg; p.hurtT = 0.15; p.lastHurt = G.time;
+        addFloat(p.x, p.y, "-" + dmg, "#ff8a7a");
+        if (p.hp <= 0) {
+          p.hp = 0; G.dead = true;
+          $("death-overlay").classList.add("show");
+        }
+      }
+      $("btn-respawn").addEventListener("click", function () {
+        if (MP.online) { mpSend({ t: "respawn" }); return; } // the server resets you at the village
+        G.dead = false;
+        G.player.hp = G.stats.maxHp;
+        G.player.x = VILLAGE.x + 30; G.player.y = VILLAGE.y + 120;
+        if (G.pet) { G.pet.hp = G.pet.maxHp; G.pet.x = G.player.x - 50; G.pet.y = G.player.y + 26; }
+        G.enemies.forEach(function (e) { e.aggroTarget = false; });
+        $("death-overlay").classList.remove("show");
+        toast("The guards set you down by the well. You're safe here.");
+      });
+
+      /* ---------------- idle hunt ---------------- */
+      function setIdle(on) {
+        if (!G) return;
+        G.idleHunt = on;
+        $("btn-idle").textContent = "Idle Hunt: " + (on ? "On" : "Off");
+        $("btn-idle").classList.toggle("on", on);
+      }
+      $("btn-idle").addEventListener("click", function () { setIdle(!G.idleHunt); });
+
+      /* ---------------- quest dialog ---------------- */
+      function nearHalden() { return G && dist(G.player.x, G.player.y, G.halden.x, G.halden.y) < 105; }
+      function updateQuestTracker() {
+        if (!G) return;
+        var q = G.ch.quest, title = $("qt-title"), body = $("qt-body");
+        if (q.state === "none") { title.textContent = "No active quest"; body.innerHTML = "Speak with <b>Steward Halden</b> by the well in the village."; }
+        else if (q.state === "active") { title.textContent = "Thin the Wilds"; body.innerHTML = 'Wild beasts defeated: <span class="qprog">' + q.kills + " / " + QUEST_NEED + "</span><br/>Wolves, boars and slimes roam east of the village."; }
+        else if (q.state === "ready") { title.textContent = "Thin the Wilds"; body.innerHTML = 'Done! Return to <span class="qprog">Steward Halden</span> for your reward.'; }
+        else { title.textContent = "Thin the Wilds — Complete"; body.innerHTML = "The Vale is quieter thanks to you. Keep hunting to level up."; }
+        $("btn-talk").classList.toggle("show", nearHalden());
+      }
+      function toggleDialog(open) {
+        var ov = $("dialog-overlay");
+        if (!open) { ov.classList.remove("show"); G.dialogOpen = false; return; }
+        var q = G.ch.quest;
+        var title = $("dlg-title"), text = $("dlg-text"), reward = $("dlg-reward"), primary = $("dlg-primary");
+        title.textContent = "Thin the Wilds";
+        if (q.state === "none") {
+          text.textContent = "\"Wolves and boars have grown bold, " + G.ch.name + ". They press in from the east fields and worry our herds. Thin them out — five beasts should send the rest running. The guards hold the village line, but out there, you're on your own.\"";
+          reward.textContent = "Reward: 40 gold · 60 XP";
+          primary.textContent = "Accept Quest"; primary.style.display = "";
+        } else if (q.state === "active") {
+          text.textContent = "\"How goes the hunt? You've dealt with " + q.kills + " of the five beasts. The wilds begin east of the village — past the guards, mind.\"";
+          reward.textContent = ""; primary.style.display = "none";
+        } else if (q.state === "ready") {
+          text.textContent = "\"Five beasts down — the herds can graze easy again. Dawnhollow Vale thanks you, " + G.ch.name + ". Take this, you've earned it.\"";
+          reward.textContent = "Reward: 40 gold · 60 XP";
+          primary.textContent = "Claim Reward"; primary.style.display = "";
+        } else {
+          text.textContent = "\"The Vale is quieter thanks to you. Rest by the well as long as you like — nothing can touch you inside the village.\"";
+          reward.textContent = ""; primary.style.display = "none";
+        }
+        ov.classList.add("show");
+        G.dialogOpen = true;
+      }
+      $("btn-talk").addEventListener("click", function () { toggleDialog(true); });
+      $("dlg-close").addEventListener("click", function () { toggleDialog(false); });
+      $("dlg-primary").addEventListener("click", function () {
+        var q = G.ch.quest;
+        if (MP.online) {
+          if (q.state === "none") mpSend({ t: "quest", action: "accept" });
+          else if (q.state === "ready") mpSend({ t: "quest", action: "claim" });
+          toggleDialog(false);
+          return;
+        }
+        if (q.state === "none") {
+          q.state = "active"; q.kills = 0;
+          toast("Quest accepted: Thin the Wilds");
+        } else if (q.state === "ready") {
+          q.state = "done";
+          G.ch.gold += 40;
+          gainXp(60, G.player.x, G.player.y);
+          toast("Quest complete! +40 gold, +60 XP");
+        }
+        updateQuestTracker();
+        toggleDialog(false);
+      });
+
+      /* =====================================================================
+         UPDATE
+      ===================================================================== */
+      function collide(x, y, r) {
+        // world bounds
+        x = clamp(x, r + 8, WORLD.w - r - 8);
+        y = clamp(y, r + 8, WORLD.h - r - 8);
+        var i, d, min;
+        for (i = 0; i < trees.length; i++) {
+          d = dist(x, y, trees[i].x, trees[i].y); min = r + 11;
+          if (d < min && d > 0.01) { x = trees[i].x + (x - trees[i].x) / d * min; y = trees[i].y + (y - trees[i].y) / d * min; }
+        }
+        for (i = 0; i < houses.length; i++) {
+          var h = houses[i];
+          var nx = clamp(x, h.x, h.x + h.w), ny = clamp(y, h.y, h.y + h.h);
+          d = dist(x, y, nx, ny);
+          if (d < r && d > 0.01) { x = nx + (x - nx) / d * r; y = ny + (y - ny) / d * r; }
+          else if (d <= 0.01) { y = h.y + h.h + r; }
+        }
+        d = dist(x, y, VILLAGE.x, VILLAGE.y - 30); min = r + 30; // the well
+        if (d < min && d > 0.01) { x = VILLAGE.x + (x - VILLAGE.x) / d * min; y = (VILLAGE.y - 30) + (y - (VILLAGE.y - 30)) / d * min; }
+        return { x: x, y: y };
+      }
+
+      function nearestEnemy(x, y, maxD) {
+        var best = null, bd = maxD;
+        for (var i = 0; i < G.enemies.length; i++) {
+          var d = dist(x, y, G.enemies[i].x, G.enemies[i].y);
+          if (d < bd) { bd = d; best = G.enemies[i]; }
+        }
+        return best;
+      }
+
+      function update(dt) {
+        var p = G.player, ch = G.ch, st = G.stats;
+        G.time += dt;
+        G.halden.bob = Math.sin(G.time * 2) * 2;
+        if (p.hurtT > 0) p.hurtT -= dt;
+
+        /* ----- movement input ----- */
+        var mx = 0, my = 0;
+        if (keys["w"] || keys["arrowup"]) my -= 1;
+        if (keys["s"] || keys["arrowdown"]) my += 1;
+        if (keys["a"] || keys["arrowleft"]) mx -= 1;
+        if (keys["d"] || keys["arrowright"]) mx += 1;
+        if (joy.active) { mx += joy.dx; my += joy.dy; }
+        var manual = Math.abs(mx) > 0.05 || Math.abs(my) > 0.05;
+
+        /* ----- idle hunt brain ----- */
+        if (G.idleHunt && !G.dead && !G.dialogOpen && !G.gmOpen && !manual) {
+          var lowHp = p.hp / st.maxHp < 0.35;
+          if (lowHp || (inSafeZone(p.x, p.y) && p.hp / st.maxHp < 0.9)) {
+            var dv = dist(p.x, p.y, VILLAGE.x + 30, VILLAGE.y + 120);
+            if (dv > 24) { mx = (VILLAGE.x + 30 - p.x) / dv; my = (VILLAGE.y + 120 - p.y) / dv; }
+          } else {
+            var prey = nearestEnemy(p.x, p.y, 4000);
+            if (prey) {
+              var dp = dist(p.x, p.y, prey.x, prey.y);
+              if (dp > st.range * 0.85) { mx = (prey.x - p.x) / dp; my = (prey.y - p.y) / dp; }
+            }
+          }
+        }
+
+        var mlen = Math.sqrt(mx * mx + my * my);
+        p.moving = mlen > 0.05 && !G.dead;
+        if (p.moving) {
+          mx /= Math.max(1, mlen); my /= Math.max(1, mlen);
+          var np = collide(p.x + mx * st.speed * dt, p.y + my * st.speed * dt, p.r);
+          p.x = np.x; p.y = np.y;
+          if (Math.abs(mx) > 0.1) p.face = mx > 0 ? 1 : -1;
+        }
+        if (MP.online) mpSendPos();
+
+        /* ----- regen ----- */
+        var safe = inSafeZone(p.x, p.y);
+        if (!G.dead) {
+          if (!MP.online) { // online: the server owns HP + regen
+            if (safe) p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.09 * dt);
+            else if (G.time - p.lastHurt > 5) p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.02 * dt);
+          }
+          p.res = Math.min(CLASSES[ch.cls].resMax, p.res + 14 * dt);
+        }
+
+        /* ----- player auto-combat (idle) ----- */
+        p.atkCd -= dt;
+        var target = nearestEnemy(p.x, p.y, st.range + 26);
+        if (target && !G.dead && !G.dialogOpen) {
+          if (p.face !== 0) p.face = target.x >= p.x ? 1 : -1;
+          if (dist(p.x, p.y, target.x, target.y) <= st.range + target.r && p.atkCd <= 0) {
+            p.atkCd = st.atkRate;
+            if (MP.online) {
+              mpAttack(target, "player"); // the server resolves the hit — this is cosmetic only
+              if (ch.cls === "warrior") G.slashes.push({ x: target.x, y: target.y, t: 0 });
+              else G.projectiles.push({ x: p.x, y: p.y - 12, fx: target.x, fy: target.y, speed: 560, kind: ch.cls === "mage" ? "fire" : "arrow", dmg: 0, crit: false, from: "player", cosmetic: true });
+            } else {
+              var crit = Math.random() < 0.15;
+              var dmg = Math.round(st.dmg * rand(0.85, 1.15) * (crit ? 1.8 : 1));
+              if (ch.cls === "warrior") {
+                G.slashes.push({ x: target.x, y: target.y, t: 0 });
+                damageEnemy(target, dmg, crit);
+              } else {
+                G.projectiles.push({
+                  x: p.x, y: p.y - 12, tx: target, speed: 560,
+                  kind: ch.cls === "mage" ? "fire" : "arrow", dmg: dmg, crit: crit, from: "player"
+                });
+              }
+            }
+          }
+        }
+
+        /* ----- pet (Fang) ----- */
+        if (G.pet) {
+          var pet = G.pet;
+          var petTarget = nearestEnemy(pet.x, pet.y, 250);
+          if (petTarget && dist(pet.x, pet.y, petTarget.x, petTarget.y) < petTarget.r + 22) {
+            pet.atkCd -= dt;
+            pet.face = petTarget.x >= pet.x ? 1 : -1;
+            if (pet.atkCd <= 0) {
+              pet.atkCd = 0.8;
+              if (MP.online) mpAttack(petTarget, "pet"); // the server resolves the hit
+              else damageEnemy(petTarget, Math.round((5 + (ch.level - 1)) * rand(0.85, 1.2)), false);
+            }
+          } else {
+            var anchorX = p.x - p.face * 40, anchorY = p.y + 30;
+            var dest = petTarget ? petTarget : null;
+            var gx = dest ? dest.x : anchorX, gy = dest ? dest.y : anchorY;
+            var gd = dist(pet.x, pet.y, gx, gy);
+            if (gd > 14) {
+              var spd = gd > 190 ? 300 : 205;
+              pet.x += (gx - pet.x) / gd * spd * dt;
+              pet.y += (gy - pet.y) / gd * spd * dt;
+              pet.face = gx >= pet.x ? 1 : -1;
+            }
+          }
+          // Fang stays safe in the village and heals there
+          if (inSafeZone(pet.x, pet.y)) pet.hp = Math.min(pet.maxHp, pet.hp + pet.maxHp * 0.09 * dt);
+          pet.hp = Math.max(1, pet.hp); // Fang never dies in slice 1 — he limps back to you
+        }
+
+        /* ----- guards patrol the village edge (server-owned when online) ----- */
+        if (!MP.online) G.guards.forEach(function (gd2) {
+          gd2.angle += dt * 0.055;
+          gd2.x = VILLAGE.x + Math.cos(gd2.angle) * (VILLAGE.r - 6);
+          gd2.y = VILLAGE.y + Math.sin(gd2.angle) * (VILLAGE.r - 6) * 0.92;
+          gd2.face = Math.cos(gd2.angle + 0.4) >= 0 ? 1 : -1;
+          gd2.atkCd -= dt;
+          var foe = nearestEnemy(gd2.x, gd2.y, 265);
+          if (foe && gd2.atkCd <= 0) {
+            gd2.atkCd = 0.85;
+            gd2.face = foe.x >= gd2.x ? 1 : -1;
+            G.projectiles.push({ x: gd2.x, y: gd2.y - 14, tx: foe, speed: 620, kind: "arrow", dmg: 16, crit: false, from: "guard" });
+          }
+        });
+
+        /* ----- summoned friendly NPCs (server-owned when online) ----- */
+        if (!MP.online) G.friendlies.forEach(function (fr) {
+          if (fr.kind === "merchant") { fr.moving = false; return; }
+          var foe = fr.kind === "guard" ? nearestEnemy(fr.x, fr.y, 260) : null;
+          var anchorX = p.x - p.face * 48, anchorY = p.y + 42;
+          var txp = foe ? foe.x : anchorX, typ = foe ? foe.y : anchorY;
+          var fd = dist(fr.x, fr.y, txp, typ);
+          var stopD = foe ? foe.r + 62 : 16;
+          fr.moving = fd > stopD;
+          if (fr.moving && fd > 0.01) {
+            fr.x += (txp - fr.x) / fd * 198 * dt;
+            fr.y += (typ - fr.y) / fd * 198 * dt;
+            fr.face = txp >= fr.x ? 1 : -1;
+          }
+          fr.atkCd -= dt;
+          if (fr.kind === "guard" && foe && fd < 250 && fr.atkCd <= 0) {
+            fr.atkCd = 0.9;
+            G.projectiles.push({ x: fr.x, y: fr.y - 14, tx: foe, speed: 620, kind: "arrow", dmg: 14, crit: false, from: "guard" });
+          }
+          if (fr.kind === "healer" && fr.atkCd <= 0) {
+            fr.atkCd = 3;
+            if (!G.dead && p.hp < st.maxHp) {
+              var heal = Math.round(st.maxHp * 0.08);
+              p.hp = Math.min(st.maxHp, p.hp + heal);
+              addFloat(p.x, p.y, "+" + heal, "#8fce62");
+            }
+            if (G.pet && G.pet.hp < G.pet.maxHp) G.pet.hp = Math.min(G.pet.maxHp, G.pet.hp + Math.round(G.pet.maxHp * 0.1));
+          }
+        });
+
+        /* ----- enemies (server-owned when online) ----- */
+        if (!MP.online) for (var i = G.enemies.length - 1; i >= 0; i--) {
+          var e = G.enemies[i];
+          if (e.flash > 0) e.flash -= dt;
+          var dP = dist(e.x, e.y, p.x, p.y);
+          var playerSafe = inSafeZone(p.x, p.y);
+          var chasing = !G.dead && !playerSafe && dP < e.aggro;
+          e.atkCd -= dt;
+          if (chasing) {
+            if (dP > e.r + p.r + 2) {
+              e.x += (p.x - e.x) / dP * e.speed * dt;
+              e.y += (p.y - e.y) / dP * e.speed * dt;
+            } else if (e.atkCd <= 0) {
+              e.atkCd = 1.1;
+              hurtPlayer(e.dmg);
+            }
+          } else {
+            // wander near home; never wander into the safe zone
+            e.wanderT -= dt;
+            if (e.wanderT <= 0) { e.wanderT = rand(1.5, 3.5); e.wanderA = rand(0, Math.PI * 2); }
+            var wx = e.x + Math.cos(e.wanderA) * e.speed * 0.32 * dt;
+            var wy = e.y + Math.sin(e.wanderA) * e.speed * 0.32 * dt;
+            if (!inSafeZone(wx, wy) && dist(wx, wy, VILLAGE.x, VILLAGE.y) > VILLAGE.r + 26) { e.x = wx; e.y = wy; }
+            else e.wanderA += Math.PI * 0.7;
+            // drift back toward home if pushed far
+            var dH = dist(e.x, e.y, e.homeX, e.homeY);
+            if (dH > 300) { e.x += (e.homeX - e.x) / dH * e.speed * 0.5 * dt; e.y += (e.homeY - e.y) / dH * e.speed * 0.5 * dt; }
+          }
+          e.x = clamp(e.x, 30, WORLD.w - 30); e.y = clamp(e.y, 30, WORLD.h - 30);
+        }
+
+        /* ----- projectiles ----- */
+        for (var j = G.projectiles.length - 1; j >= 0; j--) {
+          var pr = G.projectiles[j];
+          if (pr.cosmetic) { // online: fixed-point visual only, the server resolves damage
+            var cd = dist(pr.x, pr.y, pr.fx, pr.fy);
+            if (cd < 16) { G.projectiles.splice(j, 1); continue; }
+            pr.x += (pr.fx - pr.x) / cd * pr.speed * dt;
+            pr.y += (pr.fy - pr.y) / cd * pr.speed * dt;
+            continue;
+          }
+          if (!pr.tx || G.enemies.indexOf(pr.tx) < 0) { G.projectiles.splice(j, 1); continue; }
+          var pd = dist(pr.x, pr.y, pr.tx.x, pr.tx.y);
+          if (pd < 16) { damageEnemy(pr.tx, pr.dmg, pr.crit); G.projectiles.splice(j, 1); continue; }
+          pr.x += (pr.tx.x - pr.x) / pd * pr.speed * dt;
+          pr.y += (pr.tx.y - pr.y) / pd * pr.speed * dt;
+        }
+
+        /* ----- effects ----- */
+        for (var f = G.floats.length - 1; f >= 0; f--) {
+          var fl = G.floats[f]; fl.t += dt; fl.y -= 34 * dt;
+          if (fl.t > fl.life) G.floats.splice(f, 1);
+        }
+        for (var s2 = G.slashes.length - 1; s2 >= 0; s2--) {
+          G.slashes[s2].t += dt;
+          if (G.slashes[s2].t > 0.22) G.slashes.splice(s2, 1);
+        }
+
+        /* ----- camera ----- */
+        var vw = window.innerWidth, vh = window.innerHeight;
+        G.cam.x = clamp(p.x - vw / 2, 0, Math.max(0, WORLD.w - vw));
+        G.cam.y = clamp(p.y - vh / 2, 0, Math.max(0, WORLD.h - vh));
+
+        updateHud();
+      }
+
+      function updateHud() {
+        var p = G.player, ch = G.ch, st = G.stats;
+        $("bar-hp").style.width = clamp(p.hp / st.maxHp * 100, 0, 100) + "%";
+        $("bar-hp-text").textContent = Math.ceil(p.hp) + " / " + st.maxHp;
+        $("bar-res").style.width = clamp(p.res, 0, 100) + "%";
+        $("bar-res-text").textContent = CLASSES[ch.cls].resName + " " + Math.floor(p.res);
+        $("bar-xp").style.width = (ch.level >= LEVEL_CAP ? 100 : clamp(ch.xp / xpNeed(ch.level) * 100, 0, 100)) + "%";
+        $("hud-level").textContent = "Level " + ch.level;
+        $("hud-gold").textContent = "Gold " + ch.gold;
+        if (G.pet) { $("bar-pet").style.width = clamp(G.pet.hp / G.pet.maxHp * 100, 0, 100) + "%"; $("pet-name").textContent = "🐺 Fang · Lv " + G.ch.level; }
+        var safe = inSafeZone(p.x, p.y);
+        var zs = $("zone-sub");
+        zs.textContent = safe ? "Village · Safe Zone" : "The Wilds · Stay sharp";
+        zs.classList.toggle("wild", !safe);
+        $("btn-talk").classList.toggle("show", nearHalden());
+        $("btn-shop").classList.toggle("show", nearShop());
+        $("btn-armory").classList.toggle("show", nearArmory());
+      }
+
+      /* =====================================================================
+         DRAW
+      ===================================================================== */
+      function drawNamePlate(x, y, name, color, sub) {
+        ctx.font = "700 12.5px 'Alegreya Sans', sans-serif";
+        ctx.textAlign = "center";
+        var w = ctx.measureText(name).width + 14;
+        ctx.fillStyle = "rgba(10,20,32,0.72)";
+        ctx.beginPath(); ctx.roundRect(x - w / 2, y - 11, w, 17, 8); ctx.fill();
+        ctx.fillStyle = color; ctx.fillText(name, x, y + 2);
+        if (sub) {
+          ctx.font = "600 10.5px 'Alegreya Sans', sans-serif";
+          ctx.fillStyle = "#d8e6f2";
+          ctx.fillText(sub, x, y + 15);
+        }
+      }
+      function drawHpBar(x, y, w, frac, color) {
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.beginPath(); ctx.roundRect(x - w / 2, y, w, 6, 3); ctx.fill();
+        ctx.fillStyle = color;
+        if (frac > 0) { ctx.beginPath(); ctx.roundRect(x - w / 2 + 1, y + 1, (w - 2) * clamp(frac, 0, 1), 4, 2); ctx.fill(); }
+      }
+      function shadow(x, y, rx) {
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.36, 0, 0, 7); ctx.fill();
+      }
+
+      function drawCharacter(x, y, cls, face, moving, t) {
+        var bob = moving ? Math.sin(t * 11) * 2 : Math.sin(t * 2.4) * 1;
+        y += bob;
+        shadow(x, y + 16, 15);
+        var robe, hood, skin = "#e8b98a";
+        if (cls === "warrior") { robe = "#8c4a3a"; hood = "#a34a32"; }
+        else if (cls === "mage") { robe = "#3f5f9e"; hood = "#2c4a80"; }
+        else if (cls === "healer") { robe = "#ddd3b8"; hood = "#b3a67f"; }
+        else if (cls === "shopkeeper") { robe = "#7a5a35"; hood = "#5e4028"; }
+        else if (cls === "armorer") { robe = "#5a6a7a"; hood = "#3d4a5a"; }
+        else { robe = "#4a6e46"; hood = "#33512f"; }
+        // cloak / robe
+        ctx.fillStyle = robe;
+        ctx.beginPath();
+        ctx.moveTo(x - 11, y + 16); ctx.lineTo(x - 7, y - 8); ctx.lineTo(x + 7, y - 8); ctx.lineTo(x + 11, y + 16); ctx.closePath(); ctx.fill();
+        // head + hood
+        ctx.fillStyle = skin;
+        ctx.beginPath(); ctx.arc(x, y - 13, 7.5, 0, 7); ctx.fill();
+        ctx.fillStyle = hood;
+        ctx.beginPath(); ctx.arc(x, y - 15, 9, Math.PI * 0.95, Math.PI * 2.05); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - 9, y - 15); ctx.lineTo(x + 9, y - 15); ctx.lineTo(x + 6, y - 6); ctx.lineTo(x - 6, y - 6); ctx.closePath(); ctx.fill();
+        // weapon
+        ctx.strokeStyle = "#5e4028"; ctx.lineWidth = 2.6; ctx.lineCap = "round";
+        if (cls === "warrior") {
+          ctx.strokeStyle = "#cfd8e0"; ctx.lineWidth = 3.4;
+          ctx.beginPath(); ctx.moveTo(x + face * 10, y + 6); ctx.lineTo(x + face * 19, y - 8); ctx.stroke();
+          ctx.strokeStyle = "#8a6d1f"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(x + face * 8, y - 1); ctx.lineTo(x + face * 13, y + 4); ctx.stroke();
+          ctx.fillStyle = "#7a4a2b"; // shield
+          ctx.beginPath(); ctx.roundRect(x - face * 15 - 5, y - 4, 10, 15, 3); ctx.fill();
+        } else if (cls === "mage" || cls === "healer") {
+          ctx.beginPath(); ctx.moveTo(x + face * 11, y + 14); ctx.lineTo(x + face * 13, y - 16); ctx.stroke();
+          ctx.fillStyle = cls === "healer" ? "#69b84e" : "#ff9a3e";
+          ctx.beginPath(); ctx.arc(x + face * 13, y - 19, 4.6, 0, 7); ctx.fill();
+          ctx.fillStyle = cls === "healer" ? "rgba(105,184,78,0.35)" : "rgba(255,154,62,0.35)";
+          ctx.beginPath(); ctx.arc(x + face * 13, y - 19, 8, 0, 7); ctx.fill();
+        } else if (cls === "shopkeeper" || cls === "armorer") {
+          // merchants carry no weapon
+        } else {
+          ctx.strokeStyle = "#6e4f30";
+          ctx.beginPath(); ctx.arc(x + face * 13, y, 11, -1.1, 1.1); ctx.stroke();
+          ctx.strokeStyle = "rgba(240,240,230,0.85)"; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(x + face * 13 + Math.cos(-1.1) * 11 * 1, y - 10.5); ctx.lineTo(x + face * 13 + 0, y + 10.5); ctx.stroke();
+          // quiver
+          ctx.fillStyle = "#5e4028";
+          ctx.fillRect(x - face * 9 - 2.5, y - 12, 5, 10);
+        }
+      }
+
+      function drawWolf(x, y, face, t, dark) {
+        var bob = Math.sin(t * 9) * 1.4;
+        shadow(x, y + 9, 15);
+        ctx.fillStyle = dark ? "#5a5148" : "#8d9299";
+        ctx.beginPath(); ctx.ellipse(x, y + bob, 16, 9, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + face * 15, y - 4 + bob, 7.5, 0, 7); ctx.fill();
+        // ears
+        ctx.beginPath();
+        ctx.moveTo(x + face * 11, y - 10 + bob); ctx.lineTo(x + face * 13, y - 16 + bob); ctx.lineTo(x + face * 16, y - 10 + bob); ctx.closePath(); ctx.fill();
+        // snout
+        ctx.fillStyle = dark ? "#453d35" : "#6f757c";
+        ctx.beginPath(); ctx.ellipse(x + face * 21, y - 2 + bob, 4.6, 3.4, 0, 0, 7); ctx.fill();
+        // tail
+        ctx.strokeStyle = dark ? "#5a5148" : "#8d9299"; ctx.lineWidth = 4; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(x - face * 15, y - 2 + bob); ctx.quadraticCurveTo(x - face * 23, y - 8 + bob, x - face * 21, y - 13 + bob + Math.sin(t * 6) * 2); ctx.stroke();
+        // legs
+        ctx.lineWidth = 3.4;
+        ctx.beginPath();
+        ctx.moveTo(x - 9, y + 6 + bob); ctx.lineTo(x - 9, y + 11); ctx.moveTo(x + 9, y + 6 + bob); ctx.lineTo(x + 9, y + 11);
+        ctx.stroke();
+        // eye
+        ctx.fillStyle = dark ? "#ffb03a" : "#20303c";
+        ctx.beginPath(); ctx.arc(x + face * 17, y - 5 + bob, 1.6, 0, 7); ctx.fill();
+      }
+      function drawBoar(x, y, face, t) {
+        var bob = Math.sin(t * 7) * 1.2;
+        shadow(x, y + 10, 16);
+        ctx.fillStyle = "#7a5a40";
+        ctx.beginPath(); ctx.ellipse(x, y + bob, 17, 10.5, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + face * 15, y - 1 + bob, 8.5, 0, 7); ctx.fill();
+        ctx.fillStyle = "#a3805e";
+        ctx.beginPath(); ctx.ellipse(x + face * 21, y + 1 + bob, 4.6, 4, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.moveTo(x + face * 17, y + 4 + bob); ctx.lineTo(x + face * 20, y - 2 + bob); ctx.lineTo(x + face * 21, y + 4 + bob); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#20303c";
+        ctx.beginPath(); ctx.arc(x + face * 14, y - 4 + bob, 1.7, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#5e4630"; ctx.lineWidth = 3.2; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(x - 8, y + 7 + bob); ctx.lineTo(x - 8, y + 12); ctx.moveTo(x + 8, y + 7 + bob); ctx.lineTo(x + 8, y + 12); ctx.stroke();
+        ctx.strokeStyle = "#7a5a40"; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.moveTo(x - face * 16, y - 4 + bob); ctx.quadraticCurveTo(x - face * 22, y - 2, x - face * 20, y + 3 + bob); ctx.stroke();
+      }
+      function drawSlime(x, y, t) {
+        var sq = 1 + Math.sin(t * 5) * 0.07;
+        shadow(x, y + 9, 14);
+        ctx.fillStyle = "#69b84e";
+        ctx.beginPath(); ctx.ellipse(x, y + 2, 15 * sq, 12 / sq, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.35)";
+        ctx.beginPath(); ctx.ellipse(x - 5, y - 4, 5, 3.4, -0.4, 0, 7); ctx.fill();
+        ctx.fillStyle = "#20303c";
+        ctx.beginPath(); ctx.arc(x - 4.6, y, 1.8, 0, 7); ctx.arc(x + 4.6, y, 1.8, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#3f7d2e"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x - 6, y - 10 / sq); ctx.quadraticCurveTo(x, y - 17 / sq, x + 5, y - 11 / sq); ctx.stroke();
+      }
+      function drawGuard(x, y, face, t) {
+        shadow(x, y + 16, 14);
+        ctx.fillStyle = "#37506e";
+        ctx.beginPath(); ctx.moveTo(x - 10, y + 16); ctx.lineTo(x - 6, y - 8); ctx.lineTo(x + 6, y - 8); ctx.lineTo(x + 10, y + 16); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#e8b98a"; ctx.beginPath(); ctx.arc(x, y - 12, 7, 0, 7); ctx.fill();
+        ctx.fillStyle = "#8d9299"; // helmet
+        ctx.beginPath(); ctx.arc(x, y - 14, 8.4, Math.PI, Math.PI * 2); ctx.fill();
+        ctx.fillRect(x - 8.4, y - 14, 16.8, 3);
+        ctx.fillStyle = "#c9a227";
+        ctx.beginPath(); ctx.arc(x, y - 19.5, 2.2, 0, 7); ctx.fill();
+        ctx.strokeStyle = "#5e4028"; ctx.lineWidth = 2.6; ctx.lineCap = "round"; // spear
+        ctx.beginPath(); ctx.moveTo(x + face * 11, y + 15); ctx.lineTo(x + face * 11, y - 18); ctx.stroke();
+        ctx.fillStyle = "#cfd8e0";
+        ctx.beginPath(); ctx.moveTo(x + face * 11, y - 25); ctx.lineTo(x + face * 8, y - 17); ctx.lineTo(x + face * 14, y - 17); ctx.closePath(); ctx.fill();
+      }
+      function drawHalden(x, y, t) {
+        var bob = Math.sin(t * 2) * 1.6;
+        shadow(x, y + 16, 13);
+        ctx.fillStyle = "#5e7396";
+        ctx.beginPath(); ctx.moveTo(x - 10, y + 16); ctx.lineTo(x - 6, y - 8 + bob); ctx.lineTo(x + 6, y - 8 + bob); ctx.lineTo(x + 10, y + 16); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#eec39b"; ctx.beginPath(); ctx.arc(x, y - 13 + bob, 7, 0, 7); ctx.fill();
+        ctx.fillStyle = "#6e4f30"; // hair bun
+        ctx.beginPath(); ctx.arc(x, y - 20 + bob, 4.4, 0, 7); ctx.fill();
+        ctx.fillStyle = "#d8c49a"; // ledger book
+        ctx.fillRect(x + 4, y - 2 + bob, 10, 8);
+      }
+
+      function draw() {
+        var vw = window.innerWidth, vh = window.innerHeight;
+        var cam = G.cam;
+        ctx.fillStyle = "#3d7031";
+        ctx.fillRect(0, 0, vw, vh);
+        ctx.drawImage(worldCanvas, cam.x, cam.y, vw, vh, 0, 0, vw, vh);
+
+        // safe-zone ring
+        var sx = VILLAGE.x - cam.x, sy = VILLAGE.y - cam.y;
+        ctx.save();
+        ctx.strokeStyle = "rgba(240,201,78," + (0.55 + Math.sin(G.time * 2) * 0.18) + ")";
+        ctx.lineWidth = 3; ctx.setLineDash([14, 10]);
+        ctx.beginPath(); ctx.ellipse(sx, sy, VILLAGE.r, VILLAGE.r * 0.92, 0, 0, 7); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(240,201,78,0.05)";
+        ctx.beginPath(); ctx.ellipse(sx, sy, VILLAGE.r, VILLAGE.r * 0.92, 0, 0, 7); ctx.fill();
+        ctx.restore();
+
+        var drawables = [];
+        G.enemies.forEach(function (e) { drawables.push({ y: e.y, kind: "enemy", o: e }); });
+        G.guards.forEach(function (gd) { drawables.push({ y: gd.y, kind: "guard", o: gd }); });
+        G.friendlies.forEach(function (fr) { drawables.push({ y: fr.y, kind: "friendly", o: fr }); });
+        drawables.push({ y: G.halden.y, kind: "halden", o: G.halden });
+        drawables.push({ y: SHOPKEEPER.y, kind: "shopkeeper", o: SHOPKEEPER });
+        drawables.push({ y: ARMORER.y, kind: "armorer", o: ARMORER });
+        if (MP.online) MP.players.forEach(function (op) {
+          if (op.pet) drawables.push({ y: op.pet.y, kind: "otherpet", o: op.pet });
+          drawables.push({ y: op.y, kind: "other", o: op });
+        });
+        if (G.pet) drawables.push({ y: G.pet.y, kind: "pet", o: G.pet });
+        drawables.push({ y: G.player.y, kind: "player", o: G.player });
+        drawables.sort(function (a, b) { return a.y - b.y; });
+
+        drawables.forEach(function (d) {
+          var o = d.o, x = o.x - cam.x, y = o.y - cam.y;
+          if (x < -70 || y < -80 || x > vw + 70 || y > vh + 80) return;
+          if (d.kind === "enemy") {
+            var es = o.scale || 1;
+            ctx.save(); ctx.translate(x, y); ctx.scale(es, es); ctx.translate(-x, -y);
+            if (o.kind === "wolf") drawWolf(x, y, o.x <= G.player.x ? 1 : -1, G.time + o.x, true);
+            else if (o.kind === "boar") drawBoar(x, y, o.x <= G.player.x ? 1 : -1, G.time + o.y);
+            else drawSlime(x, y, G.time + o.x);
+            ctx.restore();
+            if (o.flash > 0) { ctx.fillStyle = "rgba(255,80,60," + o.flash * 2.4 + ")"; ctx.beginPath(); ctx.arc(x, y, 19 * es, 0, 7); ctx.fill(); }
+            drawNamePlate(x, y - Math.round(36 * es), o.name, o.boss ? "#ffd23e" : "#ffb199", o.boss ? "BOSS" : null);
+            if (o.hp < o.maxHp) drawHpBar(x, y - Math.round(25 * es), o.boss ? 88 : 44, o.hp / o.maxHp, "#d94f3d");
+          } else if (d.kind === "friendly") {
+            if (o.kind === "guard") { drawGuard(x, y, o.face, G.time); drawNamePlate(x, y - 40, "Guard Companion", "#f0c94e"); }
+            else if (o.kind === "healer") { drawCharacter(x, y, "healer", o.face, o.moving, G.time); drawNamePlate(x, y - 44, "Wandering Healer", "#b5e39a"); }
+            else { drawHalden(x, y, G.time); drawNamePlate(x, y - 40, "Traveling Merchant", "#a9ccff"); }
+          } else if (d.kind === "guard") {
+            drawGuard(x, y, o.face, G.time);
+            drawNamePlate(x, y - 40, "Vale Guard", "#f0c94e");
+          } else if (d.kind === "halden") {
+            drawHalden(x, y + o.bob * 0.3, G.time);
+            drawNamePlate(x, y - 40, "Steward Halden", "#a9ccff");
+            var q = G.ch.quest;
+            if (q.state === "none" || q.state === "ready") {
+              var mark = q.state === "none" ? "!" : "?";
+              var bounce = Math.sin(G.time * 4) * 3;
+              ctx.font = "800 22px 'Alegreya Sans', sans-serif"; ctx.textAlign = "center";
+              ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.55)";
+              ctx.strokeText(mark, x, y - 52 + bounce);
+              ctx.fillStyle = "#f0c94e"; ctx.fillText(mark, x, y - 52 + bounce);
+            }
+          } else if (d.kind === "pet") {
+            drawWolf(x, y, o.face, G.time, false);
+            drawNamePlate(x, y - 26, "Fang", "#8fce62", "Lv " + G.ch.level);
+            if (o.hp < o.maxHp) drawHpBar(x, y - 17, 36, o.hp / o.maxHp, "#69b84e");
+          } else if (d.kind === "other") {
+            drawCharacter(x, y, o.cls, o.face, o.moving, G.time);
+            drawNamePlate(x, y - 44, o.name, "#7fd4ff", CLASSES[o.cls].label + " · Lv " + o.level);
+          } else if (d.kind === "otherpet") {
+            drawWolf(x, y, o.face, G.time, false);
+            drawNamePlate(x, y - 26, "Fang", "#8fce62", "Lv " + (o.level || 1));
+          } else if (d.kind === "shopkeeper") {
+            drawCharacter(x, y, "shopkeeper", 1, false, G.time);
+            drawNamePlate(x, y - 44, "Shopkeeper Bram", "#f0c94e", "General Shop");
+          } else if (d.kind === "armorer") {
+            drawCharacter(x, y, "armorer", 1, false, G.time);
+            drawNamePlate(x, y - 44, "Armorer Durn", "#f0c94e", "Armory");
+          } else if (d.kind === "player") {
+            drawCharacter(x, y, G.ch.cls, o.face, o.moving, G.time);
+            if (o.hurtT > 0) { ctx.fillStyle = "rgba(255,60,40," + o.hurtT * 2.2 + ")"; ctx.beginPath(); ctx.arc(x, y - 4, 22, 0, 7); ctx.fill(); }
+            // player marker arrow
+            ctx.fillStyle = "#f0c94e";
+            var ab = Math.sin(G.time * 4) * 2.5;
+            ctx.beginPath(); ctx.moveTo(x - 7, y - 58 + ab); ctx.lineTo(x + 7, y - 58 + ab); ctx.lineTo(x, y - 50 + ab); ctx.closePath(); ctx.fill();
+            drawNamePlate(x, y - 44, G.ch.name, "#ffffff", CLASSES[G.ch.cls].label + " · Lv " + G.ch.level);
+          }
+        });
+
+        // slashes
+        G.slashes.forEach(function (s) {
+          ctx.strokeStyle = "rgba(255,255,255," + (1 - s.t / 0.22) + ")";
+          ctx.lineWidth = 3.4; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.arc(s.x - cam.x, s.y - cam.y, 20, -0.6 + s.t * 5, 0.9 + s.t * 5); ctx.stroke();
+        });
+        // projectiles
+        G.projectiles.forEach(function (pr) {
+          var x = pr.x - cam.x, y = pr.y - cam.y;
+          if (pr.kind === "fire") {
+            ctx.fillStyle = "rgba(255,120,40,0.4)"; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill();
+            ctx.fillStyle = "#ffb03a"; ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill();
+          } else {
+            ctx.strokeStyle = "#e8e2d2"; ctx.lineWidth = 2.4; ctx.lineCap = "round";
+            var a = pr.cosmetic ? Math.atan2(pr.fy - pr.y, pr.fx - pr.x) : Math.atan2(pr.tx.y - pr.y, pr.tx.x - pr.x);
+            ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * 9, y - Math.sin(a) * 9); ctx.lineTo(x, y); ctx.stroke();
+          }
+        });
+        // floating text
+        ctx.textAlign = "center";
+        G.floats.forEach(function (fl) {
+          var a = 1 - Math.pow(fl.t / fl.life, 2);
+          ctx.font = (fl.big ? "800 21px" : "800 14.5px") + " 'Alegreya Sans', sans-serif";
+          ctx.lineWidth = 3.6; ctx.strokeStyle = "rgba(0,0,0," + 0.6 * a + ")";
+          var fx = fl.x - cam.x, fy = fl.y - cam.y;
+          ctx.strokeText(fl.text, fx, fy);
+          ctx.fillStyle = fl.color; ctx.globalAlpha = a;
+          ctx.fillText(fl.text, fx, fy);
+          ctx.globalAlpha = 1;
+        });
+
+        drawMinimap();
+      }
+
+      function drawMinimap() {
+        var mw = minimap.width, mh = minimap.height;
+        var sx = mw / WORLD.w, sy = mh / WORLD.h;
+        mctx.fillStyle = "#2c5a2a"; mctx.fillRect(0, 0, mw, mh);
+        mctx.fillStyle = "#c2a878";
+        mctx.beginPath(); mctx.ellipse(VILLAGE.x * sx, VILLAGE.y * sy, VILLAGE.r * sx, VILLAGE.r * sy, 0, 0, 7); mctx.fill();
+        mctx.strokeStyle = "rgba(240,201,78,0.8)"; mctx.lineWidth = 1.4;
+        mctx.beginPath(); mctx.ellipse(VILLAGE.x * sx, VILLAGE.y * sy, VILLAGE.r * sx, VILLAGE.r * sy, 0, 0, 7); mctx.stroke();
+        mctx.fillStyle = "#3f7f9e";
+        mctx.beginPath(); mctx.ellipse(1980 * sx, 1420 * sy, 190 * sx, 110 * sy, 0, 0, 7); mctx.fill();
+        function dot(x, y, color, r) { mctx.fillStyle = color; mctx.beginPath(); mctx.arc(x * sx, y * sy, r, 0, 7); mctx.fill(); }
+        G.enemies.forEach(function (e) { dot(e.x, e.y, "#e2574c", 2.4); });
+        G.guards.forEach(function (gd) { dot(gd.x, gd.y, "#f0c94e", 2.6); });
+        dot(G.halden.x, G.halden.y, "#6fb1e8", 3);
+        if (G.pet) dot(G.pet.x, G.pet.y, "#8fce62", 2.6);
+        dot(SHOPKEEPER.x, SHOPKEEPER.y, "#ffd23e", 2.6);
+        dot(ARMORER.x, ARMORER.y, "#c9a227", 2.6);
+        if (MP.online) MP.players.forEach(function (op) {
+          dot(op.x, op.y, "#7fd4ff", 3);
+          if (op.pet) dot(op.pet.x, op.pet.y, "#8fce62", 2.2);
+        });
+        dot(G.player.x, G.player.y, "#ffffff", 3.6);
+        mctx.strokeStyle = "rgba(255,255,255,0.9)"; mctx.lineWidth = 1.4;
+        mctx.beginPath(); mctx.arc(G.player.x * sx, G.player.y * sy, 5.4, 0, 7); mctx.stroke();
+      }
+
+      function loop(ts) {
+        if (!G) return;
+        var dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
+        lastTs = ts;
+        update(dt);
+        draw();
+        rafId = requestAnimationFrame(loop);
+      }
+
+      /* =====================================================================
+         GAME MASTER CONSOLE — slice 1: works on your own character.
+         Other-player GM tools arrive with multiplayer in slice 2.
+      ===================================================================== */
+      function gmLog(msg) {
+        G.gmLog.unshift(msg);
+        if (G.gmLog.length > 7) G.gmLog.pop();
+        var ul = $("gm-log");
+        ul.innerHTML = "";
+        G.gmLog.forEach(function (m) {
+          var li = document.createElement("li");
+          li.textContent = m;
+          ul.appendChild(li);
+        });
+      }
+      function refreshStats() {
+        if (!G) return;
+        G.stats = classStats(G.ch);
+        if (G.player.hp > G.stats.maxHp) G.player.hp = G.stats.maxHp;
+        if (G.pet) { G.pet.maxHp = 80 + (G.ch.level - 1) * 10; G.pet.level = G.ch.level; if (G.pet.hp > G.pet.maxHp) G.pet.hp = G.pet.maxHp; }
+      }
+      function renderGm() {
+        if (!G) return;
+        var ch = G.ch, st = G.stats, c = CLASSES[ch.cls];
+        var rows = [
+          ["Name", ch.name], ["Class", c.label], ["Level", ch.level + (ch.level >= LEVEL_CAP ? " (cap 60" + (ch.level > LEVEL_CAP ? " · GM bypass" : "") + ")" : "")],
+          ["XP", ch.level >= LEVEL_CAP ? "—" : ch.xp + " / " + xpNeed(ch.level)],
+          ["Health", Math.ceil(G.player.hp) + " / " + st.maxHp], ["Damage", st.dmg],
+          ["Range", st.range], ["Speed", st.speed], ["Gold (money)", ch.gold], ["Kills", ch.kills]
+        ];
+        if (G.pet) rows.push(["Pet", "Fang · Lv " + G.ch.level + " · " + Math.ceil(G.pet.hp) + " / " + G.pet.maxHp + " HP"]);
+        $("gm-stats").innerHTML = rows.map(function (r) {
+          return "<span>" + r[0] + " <b></b></span>";
+        }).join("");
+        var bs = $("gm-stats").querySelectorAll("b");
+        rows.forEach(function (r, i) { bs[i].textContent = r[1]; });
+
+        var inv = $("gm-inventory");
+        inv.innerHTML = "";
+        if (!ch.items.length) {
+          inv.innerHTML = '<p class="gm-note">Inventory is empty. Give yourself some gear or potions above.</p>';
+          return;
+        }
+        ch.items.forEach(function (it) {
+          var row = document.createElement("div");
+          row.className = "inv-row";
+          var left = document.createElement("div");
+          var btn = document.createElement("button");
+          btn.className = "gm-btn"; btn.type = "button";
+          if (it.gear) {
+            var gd = GEAR[it.id];
+            var equipped = ch.gear[gd.slot] === it.id;
+            left.innerHTML = '<span class="inv-name"></span> <span class="inv-desc">' + gd.desc + " · " + gd.slot + '</span>' + (equipped ? ' <span class="equipped-tag">EQUIPPED</span>' : "");
+            left.querySelector(".inv-name").textContent = gd.icon + " " + gd.name;
+            btn.textContent = equipped ? "Unequip" : "Equip";
+            btn.addEventListener("click", function () {
+              ch.gear[gd.slot] = equipped ? null : it.id;
+              refreshStats();
+              gmLog((equipped ? "Unequipped " : "Equipped ") + gd.name + ".");
+              renderGm();
+            });
+          } else {
+            var id2 = ITEMS[it.id];
+            left.innerHTML = '<span class="inv-name"></span> <span class="inv-desc">' + id2.desc + " · ×" + it.qty + "</span>";
+            left.querySelector(".inv-name").textContent = id2.icon + " " + id2.name;
+            btn.textContent = "Use";
+            btn.addEventListener("click", function () {
+              if (G.player.hp >= G.stats.maxHp) { toast("Already at full health."); return; }
+              var heal = Math.round(G.stats.maxHp * id2.healPct);
+              G.player.hp = Math.min(G.stats.maxHp, G.player.hp + heal);
+              addFloat(G.player.x, G.player.y, "+" + heal, "#8fce62");
+              it.qty--;
+              if (it.qty <= 0) ch.items.splice(ch.items.indexOf(it), 1);
+              gmLog("Used " + id2.name + " (+" + heal + " HP).");
+              renderGm();
+            });
+          }
+          row.appendChild(left); row.appendChild(btn);
+          inv.appendChild(row);
+        });
+      }
+      function giveGear(id, equip) {
+        var ch = G.ch, gd = GEAR[id];
+        var owned = ch.items.some(function (it) { return it.gear && it.id === id; });
+        if (!owned) ch.items.push({ id: id, gear: true });
+        if (equip) ch.gear[gd.slot] = id;
+        refreshStats();
+        gmLog((owned ? "Already owned — " : "Gave ") + gd.name + (equip ? " (equipped)" : "") + ".");
+      }
+      function giveItem(id, qty) {
+        var ch = G.ch;
+        var found = null;
+        ch.items.forEach(function (it) { if (!it.gear && it.id === id) found = it; });
+        if (found) found.qty += qty; else ch.items.push({ id: id, qty: qty });
+        gmLog("Gave " + ITEMS[id].name + " ×" + qty + ".");
+      }
+      function gmSetLevel(n) {
+        n = clamp(Math.floor(n) || 1, 1, 999);
+        var ch = G.ch;
+        ch.level = n; ch.xp = 0;
+        refreshStats();
+        G.player.hp = G.stats.maxHp;
+        gmLog("Set level to " + n + (n > LEVEL_CAP ? " (past the 60 cap — GM bypass)" : "") + ".");
+        toast("Level set to " + n + ".");
+      }
+      function gmSummon(kind) {
+        var spot = summonSpot();
+        var T = ENEMY_TYPES;
+        function add(type, opts) { var s2 = Math.random() < 0.5 ? spot : summonSpot(); G.enemies.push(createEnemy(type, s2.x, s2.y, opts)); }
+        if (kind === "wolfpack") { for (var i = 0; i < 3; i++) add(T[0]); gmLog("Summoned a wolf pack ×3."); }
+        else if (kind === "boar") { add(T[1]); gmLog("Summoned a Wild Boar."); }
+        else if (kind === "slime") { add(T[2]); gmLog("Summoned a Thorn Slime."); }
+        else if (kind === "elite-wolf") { add(T[0], { name: "Elite Vale Alpha", hpMul: 6, dmgMul: 2, xpMul: 5, goldMul: 5, scale: 1.35, aggro: 260 }); gmLog("Summoned Elite Vale Alpha."); }
+        else if (kind === "elite-boar") { add(T[1], { name: "Elite Thornback Brute", hpMul: 7, dmgMul: 2.2, xpMul: 5, goldMul: 6, scale: 1.4, aggro: 260 }); gmLog("Summoned Elite Thornback Brute."); }
+        else if (kind === "dungeon") { add(T[0], { name: "Gorefang", hpMul: 25, dmgMul: 3, xpMul: 20, goldMul: 25, scale: 1.8, aggro: 320, boss: true }); gmLog("Summoned Gorefang, the Dungeon Boss."); toast("💀 Dungeon Boss summoned: Gorefang!"); }
+        else if (kind === "raid") { add(T[2], { name: "Thornmaw the Ancient", hpMul: 80, dmgMul: 4, xpMul: 60, goldMul: 80, scale: 2.4, aggro: 360, boss: true }); gmLog("Summoned Thornmaw the Ancient, the Raid Boss."); toast("👹 Raid Boss summoned: Thornmaw the Ancient!"); }
+      }
+      function gmSummonFriend(kind) {
+        if (G.friendlies.length >= 6) { toast("You already have 6 summoned NPCs with you."); return; }
+        var p = G.player;
+        G.friendlies.push({ kind: kind, x: p.x + rand(-60, 60), y: p.y + rand(30, 70), face: 1, atkCd: 0, moving: false });
+        var label = kind === "guard" ? "Guard Companion" : kind === "healer" ? "Wandering Healer" : "Traveling Merchant";
+        gmLog("Summoned friendly NPC: " + label + ".");
+        toast(label + " joins you.");
+      }
+      $("btn-gm").addEventListener("click", function () {
+        if (!G) return;
+        G.gmOpen = true;
+        renderGm();
+        $("gm-overlay").classList.add("show");
+        mpWireGmOnline();
+      });
+      $("gm-close").addEventListener("click", function () {
+        if (G) G.gmOpen = false;
+        $("gm-overlay").classList.remove("show");
+      });
+      $("gm-overlay").addEventListener("click", function (e) {
+        var t = e.target;
+        if (!t.getAttribute || !G) return;
+        var action = t.getAttribute("data-gm");
+        if (!action) return;
+        if (MP.online) { // route to the server (target player, or yourself)
+          if (action === "gold") mpGmSend("giveGold", { amount: parseInt(t.getAttribute("data-amt"), 10) });
+          else if (action === "gear") mpGmSend("giveGear", { id: t.getAttribute("data-id"), equip: false });
+          else if (action === "gear-set") { for (var id in GEAR) { if (GEAR[id] && id.indexOf("op_") === 0) mpGmSend("giveGear", { id: id, equip: true }); } }
+          else if (action === "item") mpGmSend("giveItem", { id: t.getAttribute("data-id"), qty: parseInt(t.getAttribute("data-qty"), 10) });
+          else if (action === "level") mpGmSend("setLevel", { level: parseInt(t.getAttribute("data-lvl"), 10) });
+          else if (action === "summon") mpGmSend("summon", { kind: t.getAttribute("data-summon") });
+          else if (action === "friend") mpGmSend("summonFriend", { kind: t.getAttribute("data-friend") });
+          return;
+        }
+        if (action === "gold") { var amt = parseInt(t.getAttribute("data-amt"), 10); G.ch.gold += amt; gmLog("Gave " + amt.toLocaleString() + " gold. Total: " + G.ch.gold.toLocaleString() + "."); }
+        else if (action === "gear") { giveGear(t.getAttribute("data-id"), false); }
+        else if (action === "gear-set") { for (var id in GEAR) giveGear(id, true); gmLog("Full OP set equipped. Go break the Vale."); }
+        else if (action === "item") { giveItem(t.getAttribute("data-id"), parseInt(t.getAttribute("data-qty"), 10)); }
+        else if (action === "level") { gmSetLevel(parseInt(t.getAttribute("data-lvl"), 10)); }
+        else if (action === "summon") { gmSummon(t.getAttribute("data-summon")); }
+        else if (action === "friend") { gmSummonFriend(t.getAttribute("data-friend")); }
+        renderGm();
+      });
+      $("gm-give-gold").addEventListener("click", function () {
+        var amt = parseInt($("gm-gold-input").value, 10);
+        if (!amt || amt <= 0) { toast("Enter a gold amount first."); return; }
+        if (MP.online) { mpGmSend("giveGold", { amount: amt }); return; }
+        G.ch.gold += amt;
+        gmLog("Gave " + amt.toLocaleString() + " gold. Total: " + G.ch.gold.toLocaleString() + ".");
+        renderGm();
+      });
+      $("gm-set-level").addEventListener("click", function () {
+        var n = parseInt($("gm-level-input").value, 10);
+        if (!n) { toast("Enter a level first."); return; }
+        if (MP.online) { mpGmSend("setLevel", { level: n }); return; }
+        gmSetLevel(n);
+        renderGm();
+      });
+
+      buildWorld();
+    </script>
+  </body>
+</html>
