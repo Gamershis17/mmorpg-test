@@ -1,5 +1,6 @@
-// Slice 2 smoke test — two (plus a guest) WebSocket clients against a real
-// server on a test port with the JSON fallback store.
+// Slice 2+3 smoke test — two (plus a guest) WebSocket clients against a real
+// server on a test port with the JSON fallback store. Slice 3 adds: the City
+// (zone transition), Hunter pet taming, fishing, city shops, and city quests.
 //   npm test
 // Spawns its own server, runs the checks, kills it, and verifies persistence
 // across a server restart. Exits non-zero on the first failure.
@@ -43,7 +44,7 @@ async function startServer() {
   rmSync(DATA_DIR, { recursive: true, force: true });
   server = spawn("node", ["server.js"], {
     cwd: ROOT,
-    env: { ...process.env, PORT: String(PORT), DATA_DIR, GM_ACCOUNTS: "cody" },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR, GM_ACCOUNTS: "cody,Gamershis17" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   server.stdout.on("data", (d) => process.stdout.write("[server] " + d));
@@ -63,7 +64,7 @@ async function stopServer() {
 
 // --- WS client wrapper -------------------------------------------------
 function makeClient(label) {
-  const c = { label, ws: null, snaps: [], chats: [], chars: [], kills: [], shopResults: [], gmResults: [], inspects: [], welcome: null, lastSnap: null, dead: false, respawned: null };
+  const c = { label, ws: null, snaps: [], chats: [], chars: [], kills: [], shopResults: [], gmResults: [], inspects: [], tameResults: [], fishResults: [], questResults: [], welcome: null, lastSnap: null, dead: false, respawned: null };
   c.connect = () => new Promise((resolve, reject) => {
     const ws = new WebSocket(`ws://127.0.0.1:${PORT}/`);
     c.ws = ws;
@@ -79,6 +80,9 @@ function makeClient(label) {
       else if (m.t === "shopResult") c.shopResults.push(m);
       else if (m.t === "gmResult") c.gmResults.push(m);
       else if (m.t === "inspect") c.inspects.push(m);
+      else if (m.t === "tameResult") c.tameResults.push(m);
+      else if (m.t === "fishResult") c.fishResults.push(m);
+      else if (m.t === "questResult") c.questResults.push(m);
       else if (m.t === "dead") c.dead = true;
       else if (m.t === "respawned") c.respawned = m;
     });
@@ -104,10 +108,28 @@ async function walkTo(c, tx, ty) {
   }
   return { x, y };
 }
+function lastChar(c) { return c.chars.length ? c.chars[c.chars.length - 1] : null; }
+async function walkToTamable(c) {
+  // Tamables wander, so re-aim at their latest snap position each leg.
+  // Returns the tamable once we are close enough to tame (<80px).
+  for (let i = 0; i < 8; i++) {
+    const tams = (c.lastSnap && c.lastSnap.tamables) || [];
+    if (!tams.length) return null;
+    const self = (c.lastSnap.players || []).find((pl) => c.welcome && pl.id === c.welcome.you.id);
+    const sx = self ? self.x : 640, sy = self ? self.y : 900;
+    let best = null, bd = 1e9;
+    for (const t of tams) { const d = Math.hypot(t.x - sx, t.y - sy); if (d < bd) { bd = d; best = t; } }
+    if (!best) return null;
+    if (bd < 80) return best;
+    await walkTo(c, best.x, best.y);
+    await sleep(150);
+  }
+  return null;
+}
 
 // --- main --------------------------------------------------------------
 async function main() {
-  console.log("slice 2 smoke test");
+  console.log("slice 2+3 smoke test");
   await startServer();
 
   // 1. accounts: cody is GM by default, bob is not
@@ -115,6 +137,10 @@ async function main() {
   ok("register cody", cody.ok === true && cody.account.isGM === true, "GM=" + cody.account.isGM);
   const bob = await api("/api/register", { method: "POST", body: { name: "bob", password: "pw123" } });
   ok("register bob", bob.ok === true && bob.account.isGM === false);
+  const gm2 = await api("/api/register", { method: "POST", body: { name: "Gamershis17", password: "pw123" } });
+  ok("register Gamershis17 is GM (list cody,Gamershis17)", gm2.ok === true && gm2.account.isGM === true, "GM=" + gm2.account.isGM);
+  const fan = await api("/api/register", { method: "POST", body: { name: "codyfan", password: "pw123" } });
+  ok("register codyfan is NOT GM (exact match, no substring)", fan.ok === true && fan.account.isGM === false, "GM=" + fan.account.isGM);
   const guest = await api("/api/guest", { method: "POST", body: {} });
   ok("guest account", guest.ok === true && guest.account.guest === true, guest.account.name);
 
@@ -220,7 +246,96 @@ async function main() {
   const codyChar = codyList.characters.find((ch) => ch.name === "CodyTest");
   ok("rejected give did not land", codyChar.gold < 9000, "CodyTest gold=" + codyChar.gold);
 
-  // 10. disconnect → JSON file on disk has the saved character
+  // 10. slice 3: the City, taming, fishing, city shops and quests
+  const tam0 = await waitFor(() => (A.lastSnap.tamables || []).length >= 1 ? A.lastSnap.tamables : null, 5000, "tamables in snapshots");
+  ok("wild tamable pets in snapshots", !!tam0, tam0.length + " tamables");
+  const guardCount = (A.lastSnap.guards || []).length;
+  ok("five guards patrolling (3 village + 2 city)", guardCount === 5, guardCount + " guards");
+  await walkTo(A, 3550, 900);
+  const nearTam = await walkToTamable(A);
+  ok("walked up to a wild tamable pet", !!nearTam, nearTam ? nearTam.name + " id=" + nearTam.id : "none found");
+  A.chars.length = 0; A.tameResults.length = 0;
+  A.send({ t: "tame", id: nearTam.id });
+  const tamed = await waitFor(() => A.tameResults.find((r) => r.ok === true), 5000, "tame result");
+  ok("hunter tames a wild pet", !!tamed, tamed ? tamed.pet.name : "no tame");
+  const afterTame = await waitFor(() => A.chars.find((ch) => ch.extra && ch.extra.pets && ch.extra.pets.length === 1), 5000, "char after tame");
+  ok("tamed pet saved on character", !!afterTame, afterTame ? afterTame.extra.pets.map((p) => p.name).join(",") : "missing");
+  ok("zone tracked as city after the road walk", afterTame && afterTame.extra.zone === "city", afterTame ? "zone=" + afterTame.extra.zone : "missing");
+  // non-hunter taming is rejected
+  const nearTamB = await walkToTamable(B);
+  ok("warrior found a wild pet to try", !!nearTamB, nearTamB ? nearTamB.name : "none");
+  B.tameResults.length = 0;
+  B.send({ t: "tame", id: nearTamB.id });
+  const denied2 = await waitFor(() => B.tameResults.find((r) => r.ok === false), 5000, "non-hunter tame rejection");
+  ok("warrior cannot tame (Hunter-only)", !!denied2, denied2 ? denied2.error : "no rejection");
+  // fishing + Tomas quest (catch 3, claim)
+  await walkTo(A, 3945, 900);
+  A.questResults.length = 0;
+  A.send({ t: "quest2", action: "accept" });
+  const q2a = await waitFor(() => A.questResults.find((r) => r.ok === true && r.quest === "fish" && r.action === "accept"), 5000, "quest2 accept");
+  ok("fish quest accepted (Old Tomas)", !!q2a);
+  const caught = [];
+  for (let f = 0; f < 3; f++) {
+    A.fishResults.length = 0;
+    A.send({ t: "fish" });
+    const fr = await waitFor(() => A.fishResults.find((r) => r.ok === true), 5000, "fish catch " + (f + 1));
+    ok("fish caught (" + (f + 1) + "/3)", !!fr, fr ? fr.name : "no catch");
+    caught.push(fr.id);
+    if (f < 2) await sleep(4300); // server fishing cooldown is 4s
+  }
+  const q2ready = await waitFor(() => A.chars.find((ch) => ch.extra && ch.extra.quest2 && ch.extra.quest2.state === "ready"), 5000, "quest2 ready after 3 fish");
+  ok("fish quest ready after 3 catches", !!q2ready, q2ready ? "count=" + q2ready.extra.quest2.count : "missing");
+  const goldBeforeQ2 = lastChar(A).gold;
+  A.questResults.length = 0;
+  A.send({ t: "quest2", action: "claim" });
+  const q2c = await waitFor(() => A.questResults.find((r) => r.ok === true && r.quest === "fish" && r.action === "claim"), 5000, "quest2 claim");
+  ok("fish quest claimed (+50g +80xp)", !!q2c, q2c ? "+" + q2c.gold + "g +" + q2c.xp + "xp" : "no claim");
+  const afterQ2 = await waitFor(() => A.chars.find((ch) => ch.gold === goldBeforeQ2 + 50), 5000, "gold after quest2 claim");
+  ok("quest2 gold landed", !!afterQ2, "gold=" + afterQ2.gold);
+  // sell one fish to a vendor
+  const fishPrice = { trout: 8, silverfin: 20, carp: 50, boot: 1 }[caught[0]];
+  const sellGold = Math.max(1, Math.floor(fishPrice / 2));
+  const goldBeforeSell = lastChar(A).gold;
+  A.shopResults.length = 0;
+  A.send({ t: "shop", shop: "cityshop", action: "sell", id: caught[0] });
+  const sold = await waitFor(() => A.shopResults.find((r) => r.ok === true && r.action === "sell"), 5000, "fish sold");
+  ok("fish sells to a city vendor", !!sold, sold ? "+" + sold.gold + "g" : "no sale");
+  const afterSell = await waitFor(() => A.chars.find((ch) => ch.gold === goldBeforeSell + sellGold), 5000, "gold after fish sale");
+  ok("fish sale gold landed", !!afterSell, "gold=" + afterSell.gold);
+  // city market: buy city bread
+  const goldBeforeBread = lastChar(A).gold;
+  A.shopResults.length = 0;
+  A.send({ t: "shop", shop: "cityshop", action: "buy", id: "city_bread", qty: 1 });
+  const bread = await waitFor(() => A.shopResults.find((r) => r.ok === true && r.action === "buy"), 5000, "city bread buy");
+  ok("city market sells city bread", !!bread, bread ? bread.id : "no buy");
+  const afterBread = await waitFor(() => A.chars.find((ch) => ch.gold === goldBeforeBread - 15 && (ch.items || []).some((it) => it.id === "city_bread")), 5000, "char after bread buy");
+  ok("city bread in inventory, gold -15", !!afterBread, "gold=" + afterBread.gold);
+  // city armory: GM gives self gold, buys a steel blade
+  A.chars.length = 0;
+  A.send({ t: "gm", action: "giveGold", target: "self", amount: 500 });
+  const rich = await waitFor(() => A.chars.find((ch) => ch.gold === afterBread.gold + 500), 5000, "GM self gold");
+  ok("GM give gold to self", !!rich, "gold=" + rich.gold);
+  A.shopResults.length = 0;
+  A.send({ t: "shop", shop: "cityarmory", action: "buy", id: "steel_blade", qty: 1 });
+  const blade = await waitFor(() => A.shopResults.find((r) => r.ok === true && r.action === "buy"), 5000, "steel blade buy");
+  ok("city armory sells steel blade", !!blade, blade ? blade.id : "no buy");
+  const afterBlade = await waitFor(() => A.chars.find((ch) => ch.gold === rich.gold - 300 && (ch.items || []).some((it) => it.id === "steel_blade" && it.gear)), 5000, "char after blade buy");
+  ok("steel blade owned, gold -300", !!afterBlade, "gold=" + afterBlade.gold);
+  // council letter: accept from Mira, deliver to Halden in the village
+  A.questResults.length = 0;
+  A.send({ t: "quest3", action: "accept" });
+  const q3a = await waitFor(() => A.questResults.find((r) => r.ok === true && r.quest === "letter" && r.action === "accept"), 5000, "quest3 accept");
+  ok("letter quest accepted (Clerk Mira)", !!q3a);
+  await walkTo(A, 640, 900);
+  const goldBeforeQ3 = lastChar(A).gold;
+  A.questResults.length = 0;
+  A.send({ t: "quest3", action: "deliver" });
+  const q3d = await waitFor(() => A.questResults.find((r) => r.ok === true && r.quest === "letter" && r.action === "deliver"), 5000, "quest3 deliver");
+  ok("letter delivered to Halden (+30g +50xp)", !!q3d, q3d ? "+" + q3d.gold + "g +" + q3d.xp + "xp" : "no deliver");
+  const afterQ3 = await waitFor(() => A.chars.find((ch) => ch.gold === goldBeforeQ3 + 30), 5000, "gold after letter");
+  ok("letter gold landed", !!afterQ3, "gold=" + afterQ3.gold);
+
+  // 11. disconnect → JSON file on disk has the saved character
   A.close(); B.close(); C.close();
   await sleep(1000);
   const file = join(DATA_DIR, "accounts.json");
@@ -229,12 +344,15 @@ async function main() {
   const savedCody = (saved.accounts || []).find((a) => a.name === "cody");
   const savedChar = savedCody && savedCody.characters.find((ch) => ch.name === "CodyTest");
   ok("saved character on disk (level 75)", !!savedChar && savedChar.level === 75, savedChar ? "level=" + savedChar.level : "missing");
+  ok("tamed pet persisted on disk", !!(savedChar && savedChar.extra && savedChar.extra.pets && savedChar.extra.pets.length === 1), savedChar && savedChar.extra ? savedChar.extra.pets.map((p) => p.name).join(",") : "missing");
+  ok("caught fish persisted on disk", !!(savedChar && (savedChar.items || []).some((it) => ["trout", "silverfin", "carp", "boot"].indexOf(it.id) >= 0)), savedChar ? savedChar.items.map((it) => it.id).join(",") : "missing");
+  ok("city bread + steel blade persisted on disk", !!(savedChar && (savedChar.items || []).some((it) => it.id === "city_bread") && (savedChar.items || []).some((it) => it.id === "steel_blade")), savedChar ? savedChar.items.map((it) => it.id).join(",") : "missing");
 
-  // 11. restart the server → characters load back from the file
+  // 12. restart the server → characters load back from the file
   await stopServer();
   server = spawn("node", ["server.js"], {
     cwd: ROOT,
-    env: { ...process.env, PORT: String(PORT), DATA_DIR, GM_ACCOUNTS: "cody" },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR, GM_ACCOUNTS: "cody,Gamershis17" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   await waitFor(async () => {
@@ -244,8 +362,9 @@ async function main() {
   ok("login after restart", login2.ok === true);
   const list2 = await api("/api/characters", { token: login2.token });
   const reloaded = list2.characters.find((ch) => ch.name === "CodyTest");
-  ok("character survives server restart", !!reloaded && reloaded.level === 75 && reloaded.gold === codyChar.gold,
+  ok("character survives server restart", !!reloaded && reloaded.level === 75 && reloaded.gold === savedChar.gold,
     reloaded ? "level=" + reloaded.level + " gold=" + reloaded.gold : "missing");
+  ok("tamed pet survives server restart", !!(reloaded && reloaded.extra && reloaded.extra.pets && reloaded.extra.pets.length === 1), reloaded && reloaded.extra ? reloaded.extra.pets.map((p) => p.name).join(",") : "missing");
 
   await stopServer();
   console.log(failures === 0 ? "\nALL SMOKE TESTS PASSED" : "\n" + failures + " FAILURES");
